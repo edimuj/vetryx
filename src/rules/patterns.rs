@@ -1,6 +1,6 @@
 //! Built-in detection patterns for common security issues.
 
-use super::Rule;
+use super::{Rule, RuleSource};
 use crate::types::{FindingCategory, Severity};
 
 /// Returns all built-in security rules.
@@ -19,6 +19,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Replace eval() with safer alternatives like JSON.parse() for data or explicit function calls.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -31,6 +33,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Avoid dynamic code generation. Use explicit function definitions.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -43,6 +47,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Ensure VM usage is intentional and inputs are strictly validated.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -55,6 +61,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["py".into()],
         remediation: Some("Use ast.literal_eval() for safe evaluation of literals, or avoid dynamic execution entirely.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== SHELL EXECUTION ====================
@@ -69,6 +77,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Validate all inputs passed to shell commands. Prefer execFile over exec when possible.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -81,6 +91,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Audit all shell commands being executed and validate inputs.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -93,6 +105,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["py".into()],
         remediation: Some("Use shell=False and pass arguments as a list. Validate all inputs.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -105,6 +119,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["py".into()],
         remediation: Some("Use subprocess module with shell=False instead.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== BASE64 / OBFUSCATION ====================
@@ -119,6 +135,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Review what is being decoded. Legitimate uses should have clear, documented purposes.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -131,6 +149,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Review what is being decoded and ensure it's not hiding malicious content.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -143,6 +163,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],  // All files
         remediation: Some("Decode and review the content of long encoded strings.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -155,6 +177,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Review what string is being constructed.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -167,6 +191,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into(), "py".into()],
         remediation: Some("Convert hex escapes to readable text and review.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -179,6 +205,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["py".into()],
         remediation: Some("Review what is being decoded.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== SENSITIVE FILE ACCESS ====================
@@ -193,6 +221,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("SSH key access should be strictly audited and justified.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -205,6 +235,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("AWS credential access must be carefully reviewed.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -217,6 +249,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Review why .env files are being accessed.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -229,6 +263,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Browser data access is highly sensitive and suspicious.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -241,6 +277,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Credential store access must be justified and audited.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== DATA EXFILTRATION ====================
@@ -255,6 +293,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Audit external network requests and ensure they are expected.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -267,6 +307,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Webhook URLs should be reviewed for legitimacy.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== PROMPT INJECTION ====================
@@ -281,6 +323,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
         remediation: Some("Remove prompt injection attempts from content.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -294,6 +338,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
         remediation: Some("Remove fake system message injections.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -307,6 +353,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
         remediation: Some("Remove role/mode override attempts.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -319,6 +367,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
         remediation: Some("Remove false authorization claims.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== AUTHORITY IMPERSONATION ====================
@@ -334,6 +384,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
         remediation: Some("Remove authority impersonation attempts.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -346,6 +398,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "txt".into(), "json".into(), "yaml".into(), "yml".into()],
         remediation: Some("Remove urgency-based override attempts.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== HIDDEN INSTRUCTIONS ====================
@@ -360,6 +414,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Remove zero-width characters that may hide content.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -373,6 +429,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["html".into(), "htm".into(), "md".into()],
         remediation: Some("Review HTML comments for hidden instructions.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== NETWORK/CRYPTO ====================
@@ -387,6 +445,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Remove cryptocurrency mining code.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -399,6 +459,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("Review hard-coded IP addresses for legitimacy.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== MARKDOWN CODE BLOCKS ====================
@@ -414,6 +476,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "markdown".into()],
         remediation: Some("Review shell commands in markdown for malicious intent.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -426,6 +490,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "markdown".into()],
         remediation: Some("Review Python code in markdown for malicious intent.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -438,6 +504,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "markdown".into()],
         remediation: Some("Review JavaScript code in markdown for malicious intent.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -450,6 +518,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["md".into(), "markdown".into()],
         remediation: Some("Never pipe remote content directly to shell. Download and inspect first.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== ADDITIONAL SHELL PATTERNS ====================
@@ -464,6 +534,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Review shell command usage for security issues.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -476,6 +548,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Validate all shell command inputs.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== SHELL SCRIPT PATTERNS ====================
@@ -490,6 +564,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
         remediation: Some("Remove reverse shell code immediately.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -502,6 +578,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
         remediation: Some("Download scripts and review before executing.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -514,6 +592,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["sh".into(), "bash".into(), "zsh".into()],
         remediation: Some("Remove reverse shell code.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     // ==================== ENHANCED CREDENTIAL ACCESS ====================
@@ -528,6 +608,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("SSH key access must be strictly justified.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -540,6 +622,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec![],
         remediation: Some("AWS credential access must be justified.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -552,6 +636,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["js".into(), "ts".into(), "mjs".into(), "cjs".into()],
         remediation: Some("Avoid bulk access to environment variables.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules.push(Rule {
@@ -564,6 +650,8 @@ pub fn builtin_rules() -> Vec<Rule> {
         file_extensions: vec!["py".into()],
         remediation: Some("Avoid bulk access to environment variables.".to_string()),
         enabled: true,
+        source: RuleSource::Official,
+        metadata: None,
     });
 
     rules

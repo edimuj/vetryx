@@ -1,12 +1,14 @@
 //! CLI entry point for the Vetryx security scanner.
 
 use vetryx::{
-    cli::{Cli, Commands},
+    cli::{Cli, Commands, RulesSubcommand},
     config::{generate_default_config, Config},
     decoders::Decoder,
+    filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag, load_builtin_json_rules,
     reporters::{report, OutputFormat},
     rules::patterns::builtin_rules,
-    AiAnalyzerConfig, AiBackend, AnalyzerConfig, Platform, ScanConfig, Scanner, Severity,
+    test_all_rules, test_rules_from_file, AiAnalyzerConfig, AiBackend, AnalyzerConfig, Platform,
+    RuleSource, ScanConfig, Scanner, Severity,
 };
 use anyhow::Result;
 use clap::Parser;
@@ -396,8 +398,177 @@ async fn main() -> Result<()> {
             }
         }
 
-        Commands::Rules { rule, json } => {
-            let rules = builtin_rules();
+        Commands::Rules {
+            rule,
+            official,
+            community,
+            author,
+            tag,
+            json,
+            subcommand,
+        } => {
+            // Handle subcommands first
+            if let Some(subcmd) = subcommand {
+                match subcmd {
+                    RulesSubcommand::Test {
+                        path,
+                        filter,
+                        verbose,
+                    } => {
+                        let results = if let Some(p) = path {
+                            // Test specific file
+                            eprintln!("{} {}", "Testing rules from:".cyan(), p.display());
+                            match test_rules_from_file(&p) {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    eprintln!("{} Failed to load rules: {}", "Error:".red(), e);
+                                    std::process::exit(1);
+                                }
+                            }
+                        } else {
+                            // Test all built-in rules
+                            eprintln!("{}", "Testing all built-in rules...".cyan());
+                            let rules = load_builtin_json_rules();
+                            test_all_rules(&rules)
+                        };
+
+                        // Filter results if needed
+                        let results: Vec<_> = if let Some(ref f) = filter {
+                            results
+                                .into_iter()
+                                .filter(|r| r.rule_id.to_lowercase().contains(&f.to_lowercase()))
+                                .collect()
+                        } else {
+                            results
+                        };
+
+                        // Display results
+                        let mut total_passed = 0;
+                        let mut total_failed = 0;
+                        let mut rules_with_tests = 0;
+                        let mut rules_passed = 0;
+
+                        for result in &results {
+                            if result.total_tests() == 0 && !verbose {
+                                continue;
+                            }
+
+                            rules_with_tests += 1;
+
+                            let status_icon = if result.passed {
+                                rules_passed += 1;
+                                "✓".green()
+                            } else {
+                                "✗".red()
+                            };
+
+                            if result.passed && !verbose {
+                                println!(
+                                    "{} {} - {} ({} tests)",
+                                    status_icon,
+                                    result.rule_id.cyan(),
+                                    result.rule_title,
+                                    result.total_tests()
+                                );
+                            } else {
+                                println!("{} {} - {}", status_icon, result.rule_id.cyan(), result.rule_title);
+
+                                if let Some(ref err) = result.error {
+                                    println!("  {} {}", "Error:".red(), err);
+                                }
+
+                                // Show should_match results
+                                for (case, passed) in &result.should_match_passed {
+                                    let icon = if *passed {
+                                        total_passed += 1;
+                                        "✓".green()
+                                    } else {
+                                        total_failed += 1;
+                                        "✗".red()
+                                    };
+                                    let expected = if *passed { "" } else { " (expected match)" };
+                                    println!(
+                                        "  {} should_match: \"{}\"{}",
+                                        icon,
+                                        truncate(case, 50),
+                                        expected.red()
+                                    );
+                                }
+
+                                // Show should_not_match results
+                                for (case, passed) in &result.should_not_match_passed {
+                                    let icon = if *passed {
+                                        total_passed += 1;
+                                        "✓".green()
+                                    } else {
+                                        total_failed += 1;
+                                        "✗".red()
+                                    };
+                                    let expected = if *passed { "" } else { " (unexpected match)" };
+                                    println!(
+                                        "  {} should_not_match: \"{}\"{}",
+                                        icon,
+                                        truncate(case, 50),
+                                        expected.red()
+                                    );
+                                }
+                            }
+
+                            if result.passed && result.total_tests() > 0 {
+                                total_passed += result.total_tests();
+                            }
+                        }
+
+                        // Summary
+                        println!();
+                        println!("{}", "═".repeat(50));
+                        if total_failed == 0 {
+                            println!(
+                                "{} All tests passed! ({} rules with tests, {} total tests)",
+                                "✓".green(),
+                                rules_with_tests,
+                                total_passed
+                            );
+                        } else {
+                            println!(
+                                "{} {} tests passed, {} tests failed ({}/{} rules passed)",
+                                "✗".red(),
+                                total_passed.to_string().green(),
+                                total_failed.to_string().red(),
+                                rules_passed,
+                                rules_with_tests
+                            );
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                return Ok(());
+            }
+
+            // Load rules based on source filter
+            let mut rules = if official && !community {
+                filter_rules_by_source(&load_builtin_json_rules(), RuleSource::Official)
+            } else if community && !official {
+                filter_rules_by_source(&load_builtin_json_rules(), RuleSource::Community)
+            } else {
+                // Fall back to compiled rules if no JSON rules, or use JSON rules
+                let json_rules = load_builtin_json_rules();
+                if json_rules.is_empty() {
+                    builtin_rules()
+                } else {
+                    json_rules
+                }
+            };
+
+            // Apply author filter
+            if let Some(ref auth) = author {
+                rules = filter_rules_by_author(&rules, auth);
+            }
+
+            // Apply tag filter
+            if let Some(ref t) = tag {
+                rules = filter_rules_by_tag(&rules, t);
+            }
 
             if let Some(rule_id) = rule {
                 // Show specific rule
@@ -409,6 +580,7 @@ async fn main() -> Result<()> {
                         println!("Title:       {}", r.title);
                         println!("Severity:    {}", r.severity);
                         println!("Category:    {}", r.category);
+                        println!("Source:      {}", r.source);
                         println!("Description: {}", r.description);
                         println!("Pattern:     {}", r.pattern);
                         if !r.file_extensions.is_empty() {
@@ -416,6 +588,36 @@ async fn main() -> Result<()> {
                         }
                         if let Some(ref rem) = r.remediation {
                             println!("Remediation: {}", rem);
+                        }
+
+                        // Show metadata if present
+                        if let Some(ref meta) = r.metadata {
+                            println!();
+                            println!("{}", "Metadata:".bold());
+                            if let Some(ref auth) = meta.author {
+                                println!("  Author:     {}", auth);
+                            }
+                            if let Some(ref url) = meta.author_url {
+                                println!("  Author URL: {}", url);
+                            }
+                            if let Some(ref ver) = meta.version {
+                                println!("  Version:    {}", ver);
+                            }
+                            if !meta.tags.is_empty() {
+                                println!("  Tags:       {}", meta.tags.join(", "));
+                            }
+                            if !meta.references.is_empty() {
+                                println!("  References:");
+                                for ref_url in &meta.references {
+                                    println!("    - {}", ref_url);
+                                }
+                            }
+                            if let Some(ref tc) = meta.test_cases {
+                                if !tc.should_match.is_empty() || !tc.should_not_match.is_empty() {
+                                    println!("  Test cases: {} should_match, {} should_not_match",
+                                        tc.should_match.len(), tc.should_not_match.len());
+                                }
+                            }
                         }
                     }
                 } else {
@@ -427,7 +629,14 @@ async fn main() -> Result<()> {
                 if json {
                     println!("{}", serde_json::to_string_pretty(&rules)?);
                 } else {
-                    println!("{}", "Available Rules".bold().underline());
+                    let title = if official {
+                        "Official Rules"
+                    } else if community {
+                        "Community Rules"
+                    } else {
+                        "Available Rules"
+                    };
+                    println!("{}", title.bold().underline());
                     println!();
 
                     let mut current_category = String::new();
@@ -449,15 +658,26 @@ async fn main() -> Result<()> {
                             Severity::Info => r.severity.to_string().white(),
                         };
 
+                        let source_badge = match r.source {
+                            RuleSource::Community => " [community]".dimmed(),
+                            RuleSource::Official => "".normal(),
+                        };
+
                         println!(
-                            "  {} [{}] - {}",
+                            "  {} [{}] - {}{}",
                             r.id.bright_cyan(),
                             severity_color,
-                            r.title
+                            r.title,
+                            source_badge
                         );
                     }
                     println!();
                     println!("Total: {} rules", rules.len());
+                    if !official && !community {
+                        let official_count = rules.iter().filter(|r| r.source == RuleSource::Official).count();
+                        let community_count = rules.iter().filter(|r| r.source == RuleSource::Community).count();
+                        println!("  {} official, {} community", official_count, community_count);
+                    }
                 }
             }
         }

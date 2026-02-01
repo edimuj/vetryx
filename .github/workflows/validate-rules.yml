@@ -1,0 +1,114 @@
+name: Validate Rules
+
+on:
+  pull_request:
+    paths:
+      - 'rules/**/*.json'
+      - 'rules/rule-schema.json'
+  push:
+    paths:
+      - 'rules/**/*.json'
+      - 'rules/rule-schema.json'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: Validate Detection Rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install jsonschema-cli
+        run: pip install check-jsonschema
+
+      - name: Validate JSON schema for official rules
+        run: |
+          for file in rules/official/*.json; do
+            echo "Validating $file..."
+            check-jsonschema --schemafile rules/rule-schema.json "$file"
+          done
+
+      - name: Validate JSON schema for community rules
+        run: |
+          for file in rules/community/*.json; do
+            echo "Validating $file..."
+            check-jsonschema --schemafile rules/rule-schema.json "$file"
+          done
+
+      - name: Build vetryx
+        run: cargo build --release
+
+      - name: Test rule patterns compile
+        run: |
+          echo "Testing all rule patterns..."
+          ./target/release/vetryx rules test
+
+      - name: Check for duplicate rule IDs
+        run: |
+          echo "Checking for duplicate rule IDs..."
+          # Extract all rule IDs and check for duplicates
+          IDS=$(grep -rh '"id":' rules/official rules/community | sed 's/.*"id":\s*"\([^"]*\)".*/\1/' | sort)
+          DUPES=$(echo "$IDS" | uniq -d)
+          if [ -n "$DUPES" ]; then
+            echo "ERROR: Duplicate rule IDs found:"
+            echo "$DUPES"
+            exit 1
+          fi
+          echo "No duplicate rule IDs found."
+
+      - name: Verify community rules have metadata
+        run: |
+          echo "Checking community rules have required metadata..."
+          for file in rules/community/*.json; do
+            echo "Checking $file..."
+            # Check that community rules have author field
+            if ! grep -q '"author"' "$file"; then
+              echo "WARNING: $file is missing 'author' metadata"
+            fi
+            # Check that community rules use COMM- prefix
+            NON_COMM=$(grep '"id":' "$file" | grep -v 'COMM-' || true)
+            if [ -n "$NON_COMM" ]; then
+              echo "ERROR: Community rules must use COMM- prefix for IDs"
+              echo "$NON_COMM"
+              exit 1
+            fi
+          done
+          echo "Community rule metadata check passed."
+
+      - name: Run scanner tests
+        run: cargo test
+
+  lint:
+    name: Lint Rules JSON
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check JSON formatting
+        run: |
+          echo "Checking JSON formatting..."
+          for file in rules/**/*.json; do
+            if ! python3 -c "import json; json.load(open('$file'))"; then
+              echo "ERROR: Invalid JSON in $file"
+              exit 1
+            fi
+          done
+          echo "All JSON files are valid."

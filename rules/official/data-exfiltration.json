@@ -1,5 +1,5 @@
 {
-  "$schema": "./rule-schema.json",
+  "$schema": "../rule-schema.json",
   "category": "Data Exfiltration",
   "rules": [
     {

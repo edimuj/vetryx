@@ -6,6 +6,59 @@ pub mod patterns;
 use crate::types::{FindingCategory, Severity};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+
+/// Source of a rule (official or community).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum RuleSource {
+    #[default]
+    Official,
+    Community,
+}
+
+impl fmt::Display for RuleSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RuleSource::Official => write!(f, "official"),
+            RuleSource::Community => write!(f, "community"),
+        }
+    }
+}
+
+/// Test cases for validating rule patterns.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TestCases {
+    /// Strings that should match the rule pattern.
+    #[serde(default)]
+    pub should_match: Vec<String>,
+    /// Strings that should NOT match the rule pattern.
+    #[serde(default)]
+    pub should_not_match: Vec<String>,
+}
+
+/// Metadata for community-contributed rules.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RuleMetadata {
+    /// GitHub username or name of the rule author.
+    pub author: Option<String>,
+    /// URL to author's profile.
+    pub author_url: Option<String>,
+    /// Semantic version of this rule.
+    pub version: Option<String>,
+    /// Date the rule was created.
+    pub created: Option<String>,
+    /// Date the rule was last updated.
+    pub updated: Option<String>,
+    /// URLs to relevant documentation or CVEs.
+    #[serde(default)]
+    pub references: Vec<String>,
+    /// Searchable tags for categorization.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Test cases to validate the rule pattern.
+    pub test_cases: Option<TestCases>,
+}
 
 /// A detection rule that matches suspicious patterns.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +83,12 @@ pub struct Rule {
     /// Whether this rule is enabled by default.
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Source of the rule (official or community).
+    #[serde(default)]
+    pub source: RuleSource,
+    /// Optional metadata for community rules.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<RuleMetadata>,
 }
 
 fn default_true() -> bool {
@@ -151,11 +210,56 @@ mod tests {
             file_extensions: vec!["js".to_string(), "ts".to_string()],
             remediation: None,
             enabled: true,
+            source: RuleSource::Official,
+            metadata: None,
         };
 
         let compiled = rule.compile().unwrap();
         assert!(compiled.regex.is_match("eval(code)"));
         assert!(compiled.regex.is_match("eval (code)"));
         assert!(!compiled.regex.is_match("evaluate(code)"));
+    }
+
+    #[test]
+    fn test_rule_with_test_cases() {
+        let rule = Rule {
+            id: "COMM-001".to_string(),
+            title: "Test Community Rule".to_string(),
+            description: "A test community rule".to_string(),
+            severity: Severity::High,
+            category: FindingCategory::CredentialAccess,
+            pattern: r"AKIA[0-9A-Z]{16}".to_string(),
+            file_extensions: vec![],
+            remediation: Some("Remove hardcoded keys".to_string()),
+            enabled: true,
+            source: RuleSource::Community,
+            metadata: Some(RuleMetadata {
+                author: Some("test-author".to_string()),
+                author_url: Some("https://github.com/test-author".to_string()),
+                version: Some("1.0.0".to_string()),
+                created: Some("2026-02-02".to_string()),
+                updated: Some("2026-02-02".to_string()),
+                references: vec!["https://example.com".to_string()],
+                tags: vec!["aws".to_string(), "credentials".to_string()],
+                test_cases: Some(TestCases {
+                    should_match: vec!["AKIAIOSFODNN7EXAMPLE".to_string()],
+                    should_not_match: vec!["AKIAI".to_string()],
+                }),
+            }),
+        };
+
+        let compiled = rule.compile().unwrap();
+
+        // Test should_match cases
+        if let Some(ref metadata) = rule.metadata {
+            if let Some(ref test_cases) = metadata.test_cases {
+                for case in &test_cases.should_match {
+                    assert!(compiled.regex.is_match(case), "Should match: {}", case);
+                }
+                for case in &test_cases.should_not_match {
+                    assert!(!compiled.regex.is_match(case), "Should not match: {}", case);
+                }
+            }
+        }
     }
 }

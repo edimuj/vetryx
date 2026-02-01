@@ -39,7 +39,14 @@ pub use analyzers::{AiAnalyzer, AiAnalyzerConfig, AiBackend, AnalyzerConfig, Sta
 pub use config::Config;
 pub use decoders::Decoder;
 pub use reporters::{report, OutputFormat};
-pub use rules::RuleSet;
+pub use rules::{
+    loader::{
+        filter_rules_by_author, filter_rules_by_source, filter_rules_by_tag,
+        load_builtin_json_rules, load_rules_from_file, test_all_rules, test_rule,
+        test_rules_from_file, RuleTestResult,
+    },
+    Rule, RuleMetadata, RuleSet, RuleSource, TestCases,
+};
 pub use types::{Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};

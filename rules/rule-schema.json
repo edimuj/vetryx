@@ -12,6 +12,12 @@
       "type": "string",
       "description": "Category name for this group of rules"
     },
+    "source": {
+      "type": "string",
+      "enum": ["official", "community"],
+      "default": "official",
+      "description": "Whether this rule file is official or community-contributed"
+    },
     "rules": {
       "type": "array",
       "items": {
@@ -26,7 +32,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique rule identifier (e.g., EXEC-001)",
+          "description": "Unique rule identifier. Official rules use category prefix (e.g., EXEC-001). Community rules use COMM- prefix (e.g., COMM-001)",
           "pattern": "^[A-Z]+-[0-9]+$"
         },
         "title": {
@@ -61,6 +67,67 @@
           "type": "boolean",
           "default": true,
           "description": "Whether this rule is enabled"
+        },
+        "author": {
+          "type": "string",
+          "description": "GitHub username or name of the rule author (for community rules)"
+        },
+        "author_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to author's profile (e.g., https://github.com/username)"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Semantic version of this rule (e.g., 1.0.0)"
+        },
+        "created": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the rule was created (YYYY-MM-DD)"
+        },
+        "updated": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the rule was last updated (YYYY-MM-DD)"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": "URLs to relevant documentation, CVEs, or security advisories"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "description": "Searchable tags for categorization (e.g., aws, cloud, credentials)"
+        },
+        "test_cases": {
+          "type": "object",
+          "description": "Test cases to validate the rule pattern",
+          "properties": {
+            "should_match": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Strings that should trigger this rule"
+            },
+            "should_not_match": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Strings that should NOT trigger this rule"
+            }
+          },
+          "additionalProperties": false
         }
       }
     }

@@ -3,6 +3,25 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+/// Subcommands for the `rules` command
+#[derive(Subcommand, Debug)]
+pub enum RulesSubcommand {
+    /// Test rules against their test cases
+    Test {
+        /// Path to a specific rule file to test (tests all rules if not specified)
+        #[arg(value_name = "PATH")]
+        path: Option<PathBuf>,
+
+        /// Only run tests for rules matching this ID pattern
+        #[arg(long)]
+        filter: Option<String>,
+
+        /// Show detailed test output even for passing tests
+        #[arg(long)]
+        verbose: bool,
+    },
+}
+
 /// Security scanner for AI agent plugins, skills, and MCP servers.
 #[derive(Parser, Debug)]
 #[command(name = "vetryx")]
@@ -109,9 +128,28 @@ pub enum Commands {
         #[arg(short, long)]
         rule: Option<String>,
 
+        /// Show only official rules
+        #[arg(long)]
+        official: bool,
+
+        /// Show only community rules
+        #[arg(long)]
+        community: bool,
+
+        /// Filter rules by author (partial match)
+        #[arg(long)]
+        author: Option<String>,
+
+        /// Filter rules by tag
+        #[arg(long)]
+        tag: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        #[command(subcommand)]
+        subcommand: Option<RulesSubcommand>,
     },
 
     /// Decode and analyze an encoded string
