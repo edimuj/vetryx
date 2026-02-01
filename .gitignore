@@ -1,0 +1,31 @@
+# Rust
+/target
+Cargo.lock
+**/*.rs.bk
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Serena
+.serena
+
+# Test samples (generated during testing)
+/test-samples
+
+# Build artifacts
+/dist
+/out
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Claude
+CLAUDE.md
