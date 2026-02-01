@@ -139,6 +139,18 @@ vetryx vet <source> --keep             # Keep cloned repo after scan
 vetryx vet <source> --fail-on critical # Exit code control
 ```
 
+### `vetryx watch`
+
+Monitor for new plugin installations in real-time.
+
+```bash
+vetryx watch                         # Watch default plugin directories
+vetryx watch --notify                # Desktop notifications on findings
+vetryx watch --third-party-only      # Only alert on untrusted plugins
+vetryx watch --min-severity high     # Only alert on high+ severity
+vetryx watch --path ~/.claude/plugins # Watch specific directory
+```
+
 ### `vetryx scan`
 
 Scan files or directories.

@@ -75,13 +75,25 @@ pub enum Commands {
 
     /// Watch for new plugin/skill installations and scan automatically
     Watch {
-        /// Platform to watch
+        /// Platform to watch (auto-detects if not specified)
         #[arg(short, long)]
         platform: Option<String>,
 
         /// Send desktop notifications on findings
         #[arg(long)]
         notify: bool,
+
+        /// Only alert on third-party/untrusted plugins
+        #[arg(long)]
+        third_party_only: bool,
+
+        /// Minimum severity to alert on (info, low, medium, high, critical)
+        #[arg(long, default_value = "medium")]
+        min_severity: String,
+
+        /// Custom paths to watch (can be used multiple times)
+        #[arg(long = "path", value_name = "PATH")]
+        watch_paths: Vec<std::path::PathBuf>,
     },
 
     /// List all discovered components for a platform

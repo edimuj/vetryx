@@ -139,20 +139,230 @@ async fn main() -> Result<()> {
             }
         }
 
-        Commands::Watch { platform, notify } => {
+        Commands::Watch {
+            platform,
+            notify: send_notifications,
+            third_party_only,
+            min_severity,
+            watch_paths,
+        } => {
+            use notify::{Config as NotifyConfig, RecommendedWatcher, RecursiveMode, Watcher};
+            use std::sync::mpsc::channel;
+            use std::time::Duration;
+
             let platform: Option<Platform> = platform
                 .map(|p| p.parse())
                 .transpose()
                 .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-            eprintln!(
-                "{}",
-                "Watch mode is not yet implemented.".yellow()
-            );
-            eprintln!("Platform: {:?}", platform);
-            eprintln!("Notify: {}", notify);
+            let min_severity = parse_severity(&min_severity)?;
 
-            // TODO: Implement file watching with the `notify` crate
+            // Build filter config
+            let mut filter_config = base_config;
+            filter_config.third_party_only = third_party_only;
+
+            // Determine paths to watch
+            let paths_to_watch: Vec<PathBuf> = if !watch_paths.is_empty() {
+                watch_paths
+            } else {
+                // Get default paths from platform adapter
+                let resolved_platform = platform.or_else(vetryx::adapters::detect_platform);
+                match resolved_platform {
+                    Some(p) => {
+                        let adapter = vetryx::adapters::create_adapter(p);
+                        adapter.default_paths()
+                    }
+                    None => {
+                        return Err(anyhow::anyhow!(
+                            "Could not detect platform. Use --platform or --path to specify."
+                        ));
+                    }
+                }
+            };
+
+            if paths_to_watch.is_empty() {
+                return Err(anyhow::anyhow!("No paths to watch."));
+            }
+
+            // Print startup info
+            eprintln!("{}", "═".repeat(60).bright_blue());
+            eprintln!(
+                "{}  {} Watch Mode",
+                "👁".bright_blue(),
+                "Vetryx".bold()
+            );
+            eprintln!("{}", "═".repeat(60).bright_blue());
+            eprintln!();
+            eprintln!("{}", "Watching for new plugin installations...".cyan());
+            for path in &paths_to_watch {
+                eprintln!("  {} {}", "→".dimmed(), path.display());
+            }
+            if third_party_only {
+                eprintln!("  {} Only alerting on third-party plugins", "ℹ".blue());
+            }
+            eprintln!("  {} Minimum severity: {:?}", "ℹ".blue(), min_severity);
+            if send_notifications {
+                eprintln!("  {} Desktop notifications enabled", "🔔".yellow());
+            }
+            eprintln!();
+            eprintln!("{}", "Press Ctrl+C to stop.".dimmed());
+            eprintln!();
+
+            // Create scanner config
+            let scan_config = ScanConfig {
+                enable_ai: false,
+                platform,
+                min_severity,
+                filter_config: filter_config.clone(),
+                static_config: AnalyzerConfig::default(),
+                ..Default::default()
+            };
+
+            let scanner = Scanner::with_config(scan_config)?;
+
+            // Set up file watcher
+            let (tx, rx) = channel();
+
+            let mut watcher = RecommendedWatcher::new(
+                move |res| {
+                    if let Ok(event) = res {
+                        let _ = tx.send(event);
+                    }
+                },
+                NotifyConfig::default().with_poll_interval(Duration::from_secs(2)),
+            )?;
+
+            // Watch all paths
+            for path in &paths_to_watch {
+                if path.exists() {
+                    watcher.watch(path, RecursiveMode::Recursive)?;
+                } else {
+                    eprintln!(
+                        "{} Path does not exist, skipping: {}",
+                        "⚠".yellow(),
+                        path.display()
+                    );
+                }
+            }
+
+            // Track seen files to avoid duplicate scans
+            let mut seen_files: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+
+            // Event loop
+            loop {
+                match rx.recv() {
+                    Ok(event) => {
+                        // Only process Create events
+                        if !matches!(event.kind, notify::EventKind::Create(_)) {
+                            continue;
+                        }
+
+                        for path in event.paths {
+                            // Skip if we've already seen this file
+                            if seen_files.contains(&path) {
+                                continue;
+                            }
+                            seen_files.insert(path.clone());
+
+                            // Skip non-files
+                            if !path.is_file() {
+                                continue;
+                            }
+
+                            // Skip if in trusted source and third_party_only is set
+                            if third_party_only && filter_config.is_trusted_source(&path) {
+                                continue;
+                            }
+
+                            // Skip if should be skipped by normal rules
+                            if filter_config.should_skip_path(&path) {
+                                continue;
+                            }
+
+                            eprintln!(
+                                "\n{} New file detected: {}",
+                                "📄".cyan(),
+                                path.display()
+                            );
+
+                            // Scan the file
+                            match scanner.scan_path(&path).await {
+                                Ok(scan_report) => {
+                                    let findings_count = scan_report.total_findings();
+
+                                    if findings_count > 0 {
+                                        let max_sev = scan_report.max_severity();
+
+                                        // Print alert
+                                        eprintln!(
+                                            "{} {} finding(s) in {}",
+                                            "🚨".bright_red(),
+                                            findings_count.to_string().bright_red(),
+                                            path.file_name()
+                                                .map(|n| n.to_string_lossy().to_string())
+                                                .unwrap_or_else(|| path.display().to_string())
+                                        );
+
+                                        // Show brief summary
+                                        for result in &scan_report.results {
+                                            for finding in &result.findings {
+                                                let sev_icon = match finding.severity {
+                                                    Severity::Critical => "▲".bright_red(),
+                                                    Severity::High => "▲".red(),
+                                                    Severity::Medium => "●".yellow(),
+                                                    Severity::Low => "●".blue(),
+                                                    Severity::Info => "○".white(),
+                                                };
+                                                eprintln!(
+                                                    "   {} [{}] {}",
+                                                    sev_icon,
+                                                    finding.rule_id.dimmed(),
+                                                    finding.title
+                                                );
+                                            }
+                                        }
+
+                                        // Desktop notification
+                                        if send_notifications {
+                                            let severity_text = max_sev
+                                                .map(|s| format!("{:?}", s))
+                                                .unwrap_or_else(|| "Unknown".to_string());
+
+                                            send_desktop_notification(
+                                                &format!("Vetryx: {} issue(s) found", findings_count),
+                                                &format!(
+                                                    "{} in {}\nMax severity: {}",
+                                                    findings_count,
+                                                    path.file_name()
+                                                        .map(|n| n.to_string_lossy().to_string())
+                                                        .unwrap_or_default(),
+                                                    severity_text
+                                                ),
+                                            );
+                                        }
+                                    } else {
+                                        eprintln!(
+                                            "   {} No issues found",
+                                            "✓".green()
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "   {} Failed to scan: {}",
+                                        "⚠".yellow(),
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Watch error: {}", e);
+                        break;
+                    }
+                }
+            }
         }
 
         Commands::List { platform } => {
@@ -577,5 +787,40 @@ fn truncate(s: &str, max: usize) -> String {
     } else {
         let truncated: String = s.chars().take(max).collect();
         format!("{}...", truncated)
+    }
+}
+
+/// Send a desktop notification (platform-specific).
+fn send_desktop_notification(title: &str, body: &str) {
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            r#"display notification "{}" with title "{}""#,
+            body.replace('"', "\\\"").replace('\n', " "),
+            title.replace('"', "\\\"")
+        );
+        let _ = std::process::Command::new("osascript")
+            .args(["-e", &script])
+            .output();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("notify-send")
+            .args([title, body])
+            .output();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // PowerShell notification (Windows 10+)
+        let script = format!(
+            r#"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $template.SelectSingleNode('//text[@id=\"1\"]').InnerText = '{}'; $template.SelectSingleNode('//text[@id=\"2\"]').InnerText = '{}'; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Vetryx').Show([Windows.UI.Notifications.ToastNotification]::new($template))"#,
+            title.replace('\'', "''"),
+            body.replace('\'', "''").replace('\n', " ")
+        );
+        let _ = std::process::Command::new("powershell")
+            .args(["-Command", &script])
+            .output();
     }
 }
