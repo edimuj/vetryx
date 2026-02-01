@@ -165,7 +165,7 @@ const vetryxPlugin = {
               verdict,
               findings: parsed.total_findings || 0,
               maxSeverity: parsed.max_severity || null,
-              message: getVerdictMessage(verdict, parsed.total_findings || 0, parsed.max_severity),
+              message: getVerdictMessage(verdict, parsed.total_findings || 0, parsed.max_severity ?? null),
             });
           }
 

@@ -14,8 +14,8 @@ Security scanner plugin that protects your OpenClaw environment from malicious e
 ### Install the Plugin
 
 ```bash
-# From npm (when published)
-openclaw plugins install @vetryx/openclaw-plugin
+# From npm
+openclaw plugins install @exelerus/vetryx-openclaw
 
 # From local path
 openclaw plugins install ./plugins/openclaw

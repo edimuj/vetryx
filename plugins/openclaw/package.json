@@ -1,5 +1,5 @@
 {
-  "name": "@vetryx/openclaw-plugin",
+  "name": "@exelerus/vetryx-openclaw",
   "version": "0.1.0",
   "description": "Vetryx security scanner plugin for OpenClaw",
   "type": "module",
@@ -26,9 +26,15 @@
   },
   "devDependencies": {
     "@sinclair/typebox": "^0.32.0",
+    "@types/node": "^25.2.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "openclaw": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
   }
 }
