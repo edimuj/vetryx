@@ -1,4 +1,4 @@
-//! Claude Code adapter for discovering plugins, MCPs, hooks, and config files.
+//! Claude Code adapter for discovering plugins, skills, MCPs, hooks, and config files.
 
 use super::{ComponentType, DiscoveredComponent, PlatformAdapter};
 use crate::types::Platform;
@@ -159,6 +159,82 @@ impl ClaudeCodeAdapter {
 
         Ok(components)
     }
+
+    /// Scan for skills (slash commands) in both legacy and new locations.
+    ///
+    /// Legacy: ~/.claude/commands/review.md
+    /// New:    ~/.claude/skills/review/SKILL.md (with supporting files)
+    fn discover_skills(&self) -> Result<Vec<DiscoveredComponent>> {
+        let mut components = Vec::new();
+
+        // Legacy location: ~/.claude/commands/
+        let commands_dir = self.claude_dir().join("commands");
+        if commands_dir.exists() {
+            components.extend(self.scan_skill_directory(&commands_dir, "command")?);
+        }
+
+        // New location: ~/.claude/skills/
+        let skills_dir = self.claude_dir().join("skills");
+        if skills_dir.exists() {
+            components.extend(self.scan_skill_directory(&skills_dir, "skill")?);
+        }
+
+        Ok(components)
+    }
+
+    /// Scan a directory for skill files and supporting content.
+    fn scan_skill_directory(
+        &self,
+        dir: &std::path::Path,
+        label: &str,
+    ) -> Result<Vec<DiscoveredComponent>> {
+        let mut components = Vec::new();
+
+        for entry in WalkDir::new(dir)
+            .max_depth(4) // skills/name/subdir/file
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    // Determine component type based on file extension
+                    let component_type = match ext {
+                        "md" => ComponentType::Prompt, // SKILL.md or command.md
+                        "js" | "ts" | "mjs" | "cjs" | "py" => ComponentType::Plugin,
+                        "sh" | "bash" | "zsh" => ComponentType::Hook,
+                        "json" | "yaml" | "yml" => ComponentType::Config,
+                        _ => continue,
+                    };
+
+                    // Get skill name from path
+                    // For skills/review/SKILL.md -> "review"
+                    // For commands/review.md -> "review"
+                    let skill_name = if path.file_name().map(|n| n == "SKILL.md").unwrap_or(false) {
+                        // New format: get parent directory name
+                        path.parent()
+                            .and_then(|p| p.file_name())
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown")
+                    } else {
+                        // Legacy format or supporting file: use file stem
+                        path.file_stem()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown")
+                    };
+
+                    components.push(DiscoveredComponent {
+                        path: path.to_path_buf(),
+                        component_type,
+                        name: format!("{}: {}", label, skill_name),
+                    });
+                }
+            }
+        }
+
+        Ok(components)
+    }
 }
 
 impl Default for ClaudeCodeAdapter {
@@ -191,6 +267,7 @@ impl PlatformAdapter for ClaudeCodeAdapter {
         all_components.extend(self.discover_hooks()?);
         all_components.extend(self.discover_mcp_servers()?);
         all_components.extend(self.discover_claude_md()?);
+        all_components.extend(self.discover_skills()?);
 
         // Deduplicate by path
         all_components.sort_by(|a, b| a.path.cmp(&b.path));

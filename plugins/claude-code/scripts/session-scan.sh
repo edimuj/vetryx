@@ -8,8 +8,7 @@ set -e
 HOOK_INPUT=$(cat)
 
 # Paths to scan
-PLUGIN_DIR="$HOME/.claude/plugins"
-MCP_CONFIG="$HOME/.claude.json"
+CLAUDE_DIR="$HOME/.claude"
 INSTALL_DIR="$HOME/.local/bin"
 
 # Find vetryx binary
@@ -93,8 +92,9 @@ if [ -z "$VETRYX" ]; then
     fi
 fi
 
-# Run scan on third-party plugins only (skip official ones)
-SCAN_OUTPUT=$($VETRYX scan "$PLUGIN_DIR" --third-party-only --min-severity medium -f json 2>/dev/null || true)
+# Run scan on Claude directory (plugins, skills, hooks, configs)
+# Uses --third-party-only to skip official Anthropic components
+SCAN_OUTPUT=$($VETRYX scan "$CLAUDE_DIR" --platform claude-code --third-party-only --min-severity medium -f json 2>/dev/null || true)
 
 # Parse results
 TOTAL_FINDINGS=$(echo "$SCAN_OUTPUT" | jq -r '.results | map(.findings | length) | add // 0' 2>/dev/null || echo "0")
@@ -109,11 +109,11 @@ if [ "$TOTAL_FINDINGS" != "0" ] && [ "$TOTAL_FINDINGS" != "null" ]; then
 
     # Format message based on severity
     if [ "$MAX_SEVERITY" = "critical" ]; then
-        MESSAGE="SECURITY ALERT: Found $CRITICAL critical, $HIGH high, $MEDIUM medium issue(s) in third-party plugins. Run 'vetryx scan ~/.claude/plugins' for details."
+        MESSAGE="SECURITY ALERT: Found $CRITICAL critical, $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vetryx:scan for AI-powered analysis."
     elif [ "$MAX_SEVERITY" = "high" ]; then
-        MESSAGE="Security Warning: Found $HIGH high, $MEDIUM medium issue(s) in third-party plugins. Review with 'vetryx scan ~/.claude/plugins'."
+        MESSAGE="Security Warning: Found $HIGH high, $MEDIUM medium issue(s) in plugins/skills. Run /vetryx:scan to review."
     else
-        MESSAGE="Security Notice: Found $MEDIUM medium issue(s) in third-party plugins."
+        MESSAGE="Security Notice: Found $MEDIUM medium issue(s) in plugins/skills. Run /vetryx:scan for details."
     fi
 
     # Output for Claude Code

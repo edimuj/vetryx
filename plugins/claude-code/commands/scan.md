@@ -1,6 +1,8 @@
 # /vetryx:scan
 
-Run a security scan on Claude Code plugins, MCPs, and configurations.
+Run a security scan on Claude Code plugins, skills, MCPs, and configurations.
+
+**Runs as a subagent to keep your main conversation clean.**
 
 ## Usage
 
@@ -25,15 +27,49 @@ Run a security scan on Claude Code plugins, MCPs, and configurations.
 
 ## Instructions
 
+**IMPORTANT: Always run this as a Task subagent to avoid polluting the main context.**
+
 When the user runs this command:
 
-1. Execute `vetryx scan` on the specified path (default: `~/.claude/plugins`)
-2. Use `--third-party-only` flag to skip official Anthropic plugins
-3. Report findings with severity levels (Critical, High, Medium, Low)
-4. For any Critical or High findings, recommend immediate review
-5. Provide remediation guidance for each finding
+1. Use the **Task tool** to spawn a subagent with the following configuration:
+   - `subagent_type`: "general-purpose"
+   - `description`: "Security scan with Vetryx"
+   - `prompt`: See below
 
-Run the scan with:
-```bash
-vetryx scan "${1:-$HOME/.claude/plugins}" --third-party-only -f cli
+2. The subagent will:
+   - Run the vetryx scan CLI command
+   - Analyze any findings using AI reasoning (free - uses the current Claude session)
+   - Determine which findings are real threats vs false positives
+   - Return a concise summary
+
+3. Report only the **summary** to the user in the main context
+
+### Task Prompt Template
+
 ```
+Run a Vetryx security scan and analyze the results.
+
+**Step 1: Run the scan**
+Execute this command:
+\`\`\`bash
+vetryx scan "${PATH:-$HOME/.claude/plugins}" ${FLAGS:---third-party-only} -f json
+\`\`\`
+
+**Step 2: Analyze findings**
+For each finding, determine:
+- Is this a real security threat or a false positive?
+- What is the actual risk level?
+- Should the user take action?
+
+**Step 3: Return summary**
+Provide a concise summary:
+- Total files scanned
+- Real threats found (with severity)
+- False positives filtered out
+- Recommended actions (if any)
+
+Do NOT include raw scan output. Only return the analyzed summary.
+```
+
+Replace `${PATH}` with the user-provided path (default: `$HOME/.claude/plugins`)
+Replace `${FLAGS}` with any flags the user specified
