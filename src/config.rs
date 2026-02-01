@@ -52,6 +52,10 @@ pub struct Config {
     /// Rule IDs to disable.
     #[serde(default)]
     pub disabled_rules: Vec<String>,
+
+    /// Only scan third-party/unknown sources (skip official and trusted).
+    #[serde(default)]
+    pub third_party_only: bool,
 }
 
 fn default_entropy_threshold() -> f64 {
@@ -158,6 +162,7 @@ impl Config {
             skip_python_cache: true,
             entropy_threshold: 5.5,
             disabled_rules: vec![],
+            third_party_only: false,
         }
     }
 
@@ -266,6 +271,59 @@ impl Config {
     /// Check if a rule is disabled.
     pub fn is_rule_disabled(&self, rule_id: &str) -> bool {
         self.disabled_rules.iter().any(|r| r == rule_id)
+    }
+
+    /// Check if a path is from a trusted/official source.
+    /// Used with --third-party-only to skip these and only scan unknown plugins.
+    pub fn is_trusted_source(&self, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+
+        // Official Claude plugins
+        if path_str.contains("claude-plugins-official") {
+            return true;
+        }
+
+        // Official Anthropic packages/plugins
+        if path_str.contains("@anthropic-ai")
+            || path_str.contains("anthropic-ai")
+            || path_str.contains("/anthropic/")
+        {
+            return true;
+        }
+
+        // Official OpenAI packages
+        if path_str.contains("@openai") || path_str.contains("/openai/") {
+            return true;
+        }
+
+        // System package managers (not user-installed plugins)
+        if path_str.contains("/Homebrew/")
+            || path_str.contains("/homebrew/")
+            || path_str.contains("/Cellar/")
+        {
+            return true;
+        }
+
+        // IDE extensions/caches
+        if path_str.contains("/JetBrains/")
+            || path_str.contains("/.vscode/")
+            || path_str.contains("/VSCode/")
+        {
+            return true;
+        }
+
+        // Check trusted packages list
+        if path_str.contains("node_modules") {
+            for pkg in &self.trusted_packages {
+                if path_str.contains(&format!("node_modules/{}/", pkg))
+                    || path_str.contains(&format!("node_modules/{}\\", pkg))
+                {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }
 

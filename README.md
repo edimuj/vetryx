@@ -120,6 +120,9 @@ vetryx scan ./plugin --skip-deps
 
 # Trust specific packages
 vetryx scan ./plugin --trust lodash --trust axios
+
+# Only scan third-party plugins (skip official/trusted sources)
+vetryx scan ~/.claude --third-party-only
 ```
 
 ## Commands
@@ -141,10 +144,11 @@ vetryx vet <source> --fail-on critical # Exit code control
 Scan files or directories.
 
 ```bash
-vetryx scan <path>                # Scan path
-vetryx scan <path> -f json        # JSON output
-vetryx scan <path> -f sarif       # SARIF for GitHub integration
-vetryx scan <path> --fail-on high # Fail CI on high+ severity
+vetryx scan <path>                   # Scan path
+vetryx scan <path> -f json           # JSON output
+vetryx scan <path> -f sarif          # SARIF for GitHub integration
+vetryx scan <path> --fail-on high    # Fail CI on high+ severity
+vetryx scan <path> --third-party-only # Only scan unknown/untrusted plugins
 ```
 
 ### `vetryx rules`

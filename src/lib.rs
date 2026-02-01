@@ -134,6 +134,14 @@ impl Scanner {
                 continue;
             }
 
+            // If third_party_only mode, skip trusted/official sources
+            if self.config.filter_config.third_party_only
+                && self.config.filter_config.is_trusted_source(&component.path)
+            {
+                tracing::debug!("Skipping (trusted source): {}", component.path.display());
+                continue;
+            }
+
             tracing::debug!("Scanning: {}", component.path.display());
 
             match self.static_analyzer.scan_file(&component.path) {

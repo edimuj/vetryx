@@ -67,6 +67,10 @@ pub enum Commands {
         /// Additional packages to trust (can be used multiple times)
         #[arg(long = "trust", value_name = "PACKAGE")]
         trusted_packages: Vec<String>,
+
+        /// Only scan third-party/unknown plugins (skip official and trusted sources)
+        #[arg(long)]
+        third_party_only: bool,
     },
 
     /// Watch for new plugin/skill installations and scan automatically

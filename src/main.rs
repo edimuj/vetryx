@@ -45,6 +45,7 @@ async fn main() -> Result<()> {
             skip_deps,
             enable_entropy,
             trusted_packages,
+            third_party_only,
         } => {
             // Parse platform
             let platform: Option<Platform> = platform
@@ -60,6 +61,9 @@ async fn main() -> Result<()> {
             let mut filter_config = base_config;
             if skip_deps {
                 filter_config.skip_node_modules = true;
+            }
+            if third_party_only {
+                filter_config.third_party_only = true;
             }
             for pkg in trusted_packages {
                 if !filter_config.trusted_packages.contains(&pkg) {
