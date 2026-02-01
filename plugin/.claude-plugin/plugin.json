@@ -1,0 +1,12 @@
+{
+  "name": "vetryx",
+  "version": "0.1.0",
+  "description": "Security scanner for Claude Code plugins, MCPs, and configurations. Automatically scans on session start and alerts on threats.",
+  "author": {
+    "name": "Vetryx Contributors"
+  },
+  "homepage": "https://github.com/yourusername/vetryx",
+  "repository": "https://github.com/yourusername/vetryx",
+  "license": "Apache-2.0",
+  "keywords": ["security", "scanner", "malware", "plugin-security", "mcp-security"]
+}

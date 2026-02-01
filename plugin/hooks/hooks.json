@@ -1,0 +1,17 @@
+{
+  "description": "Vetryx security scanning hooks for Claude Code",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-scan.sh",
+            "timeout": 30000,
+            "statusMessage": "Vetryx: Scanning plugins for security issues..."
+          }
+        ]
+      }
+    ]
+  }
+}
