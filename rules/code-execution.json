@@ -1,0 +1,42 @@
+{
+  "$schema": "./rule-schema.json",
+  "category": "Code Execution",
+  "rules": [
+    {
+      "id": "EXEC-001",
+      "title": "Direct eval() usage",
+      "description": "eval() executes arbitrary code and is commonly used in malware to run obfuscated payloads.",
+      "severity": "critical",
+      "pattern": "\\beval\\s*\\(",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Replace eval() with safer alternatives like JSON.parse() for data or explicit function calls."
+    },
+    {
+      "id": "EXEC-002",
+      "title": "Function constructor",
+      "description": "new Function() is equivalent to eval() and can execute arbitrary code.",
+      "severity": "critical",
+      "pattern": "\\bnew\\s+Function\\s*\\(",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Avoid dynamic code generation. Use explicit function definitions."
+    },
+    {
+      "id": "EXEC-003",
+      "title": "VM code execution",
+      "description": "Node.js vm module can execute arbitrary code with various isolation levels.",
+      "severity": "high",
+      "pattern": "\\bvm\\s*\\.\\s*(runInContext|runInNewContext|runInThisContext|compileFunction)\\s*\\(",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Ensure VM usage is intentional and inputs are strictly validated."
+    },
+    {
+      "id": "EXEC-004",
+      "title": "Python exec/eval",
+      "description": "exec() and eval() execute arbitrary Python code.",
+      "severity": "critical",
+      "pattern": "\\b(exec|eval)\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Use ast.literal_eval() for safe evaluation of literals, or avoid dynamic execution entirely."
+    }
+  ]
+}

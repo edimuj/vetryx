@@ -85,8 +85,23 @@ fn test_detects_prompt_injection_system_tag() {
     );
 }
 
-// Note: role-hijack.md and admin-impersonation.md use patterns not yet covered
-// by rules - they're included as samples for future rule development
+#[test]
+fn test_detects_prompt_injection_role_hijack() {
+    assert_detects(
+        "prompt-injection/role-hijack.md",
+        3,
+        "Identity hijacking attempt (INJECT-005)",
+    );
+}
+
+#[test]
+fn test_detects_prompt_injection_admin_impersonation() {
+    assert_detects(
+        "prompt-injection/admin-impersonation.md",
+        1,
+        "Authority claim from company (AUTH-003)",
+    );
+}
 
 // ============================================================================
 // CODE EXECUTION TESTS
@@ -194,8 +209,14 @@ fn test_detects_credential_theft_ssh() {
     );
 }
 
-// Note: aws-creds.py uses Python Path syntax that current rules don't cover
-// It's included as a sample for future rule development
+#[test]
+fn test_detects_credential_theft_aws() {
+    assert_detects(
+        "credential-theft/aws-creds.py",
+        2,
+        "Python Path sensitive directory access (CRED-005)",
+    );
+}
 
 #[test]
 fn test_detects_credential_theft_env() {
@@ -246,11 +267,11 @@ fn test_all_samples_detected() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/samples");
     let (count, _) = scan_sample(path.to_str().unwrap());
 
-    // We detect 16 out of 18 sample files with ~53 total findings
-    // Minimum expected: 50 (allowing some margin for rule changes)
+    // We detect all 18 sample files with ~60 total findings
+    // Minimum expected: 55 (allowing some margin for rule changes)
     assert!(
-        count >= 50,
-        "Expected at least 50 total findings across all samples, got {}",
+        count >= 55,
+        "Expected at least 55 total findings across all samples, got {}",
         count
     );
 }

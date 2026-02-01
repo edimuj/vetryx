@@ -1,5 +1,6 @@
 //! Security detection rules for the scanner.
 
+pub mod loader;
 pub mod patterns;
 
 use crate::types::{FindingCategory, Severity};
@@ -81,9 +82,32 @@ impl RuleSet {
         Self { rules: Vec::new() }
     }
 
-    /// Load the built-in rules.
+    /// Load the built-in rules from JSON files (preferred) or compiled patterns (fallback).
     pub fn with_builtin_rules(mut self) -> Result<Self, regex::Error> {
-        for rule in patterns::builtin_rules() {
+        // Try JSON rules first
+        let json_rules = loader::load_builtin_json_rules();
+
+        if !json_rules.is_empty() {
+            for rule in json_rules {
+                if rule.enabled {
+                    self.rules.push(rule.compile()?);
+                }
+            }
+        } else {
+            // Fall back to compiled patterns
+            for rule in patterns::builtin_rules() {
+                if rule.enabled {
+                    self.rules.push(rule.compile()?);
+                }
+            }
+        }
+        Ok(self)
+    }
+
+    /// Load rules from JSON files in a directory.
+    pub fn with_rules_from_directory(mut self, dir: &std::path::Path) -> Result<Self, Box<dyn std::error::Error>> {
+        let rules = loader::load_rules_from_directory(dir)?;
+        for rule in rules {
             if rule.enabled {
                 self.rules.push(rule.compile()?);
             }

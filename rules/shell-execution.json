@@ -1,0 +1,87 @@
+{
+  "$schema": "./rule-schema.json",
+  "category": "Shell Execution",
+  "rules": [
+    {
+      "id": "SHELL-001",
+      "title": "Child process spawn/exec",
+      "description": "Spawning shell processes can execute arbitrary system commands.",
+      "severity": "high",
+      "pattern": "\\b(child_process|require\\s*\\(\\s*['\"]child_process['\"]\\s*\\))\\s*\\.\\s*(exec|execSync|spawn|spawnSync|execFile|execFileSync|fork)\\s*\\(",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Validate all inputs passed to shell commands. Prefer execFile over exec when possible."
+    },
+    {
+      "id": "SHELL-002",
+      "title": "Shell execution via execa/shelljs",
+      "description": "Popular shell execution libraries that can run arbitrary commands.",
+      "severity": "high",
+      "pattern": "\\b(execa|shelljs|\\$`|shell\\.exec)\\s*\\(",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Audit all shell commands being executed and validate inputs."
+    },
+    {
+      "id": "SHELL-003",
+      "title": "Python subprocess execution",
+      "description": "subprocess module can execute arbitrary system commands.",
+      "severity": "high",
+      "pattern": "\\bsubprocess\\s*\\.\\s*(run|call|Popen|check_output|check_call|getoutput|getstatusoutput)\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Use shell=False and pass arguments as a list. Validate all inputs."
+    },
+    {
+      "id": "SHELL-004",
+      "title": "Python os.system/popen",
+      "description": "os.system() and os.popen() execute shell commands.",
+      "severity": "high",
+      "pattern": "\\bos\\s*\\.\\s*(system|popen)\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Use subprocess module with shell=False instead."
+    },
+    {
+      "id": "SHELL-005",
+      "title": "Destructured child_process import",
+      "description": "Importing exec/spawn from child_process enables shell command execution.",
+      "severity": "high",
+      "pattern": "(const|let|var)\\s*\\{\\s*(exec|execSync|spawn|spawnSync|execFile|fork)[^}]*\\}\\s*=\\s*require\\s*\\(\\s*['\"]child_process['\"]\\s*\\)",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Review shell command usage for security issues."
+    },
+    {
+      "id": "SHELL-006",
+      "title": "Direct exec/execSync call",
+      "description": "Direct exec() or execSync() calls execute shell commands.",
+      "severity": "high",
+      "pattern": "\\b(exec|execSync)\\s*\\(\\s*['\"`]",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Validate all shell command inputs."
+    },
+    {
+      "id": "SCRIPT-001",
+      "title": "Reverse shell pattern",
+      "description": "Bash reverse shell connects back to attacker-controlled server.",
+      "severity": "critical",
+      "pattern": "(bash\\s+-i\\s+>&\\s*/dev/tcp/|nc\\s+(-e|--exec)\\s+/bin/(ba)?sh|/dev/tcp/[^/]+/[0-9]+)",
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Remove reverse shell code immediately."
+    },
+    {
+      "id": "SCRIPT-002",
+      "title": "Curl/wget pipe to shell",
+      "description": "Downloading and executing remote scripts is extremely dangerous.",
+      "severity": "critical",
+      "pattern": "(curl|wget)\\s+[^\\n|]*\\|\\s*(sudo\\s+)?(ba)?sh",
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Download scripts and review before executing."
+    },
+    {
+      "id": "SCRIPT-003",
+      "title": "Python reverse shell",
+      "description": "Python one-liner reverse shell pattern.",
+      "severity": "critical",
+      "pattern": "python[23]?\\s+-c\\s+.import\\s+socket",
+      "file_extensions": ["sh", "bash", "zsh"],
+      "remediation": "Remove reverse shell code."
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "./rule-schema.json",
+  "category": "Prompt Injection",
+  "rules": [
+    {
+      "id": "INJECT-001",
+      "title": "Ignore instructions pattern",
+      "description": "Classic prompt injection attempting to override system instructions.",
+      "severity": "critical",
+      "pattern": "(?i)(ignore|disregard|forget)\\s+(all\\s+)?(previous|prior|above|earlier)\\s+(instructions|rules|guidelines|constraints)",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove prompt injection attempts from content."
+    },
+    {
+      "id": "INJECT-002",
+      "title": "System message injection",
+      "description": "Attempting to inject fake system messages.",
+      "severity": "critical",
+      "pattern": "(?i)(<\\s*system\\s*>|\\[SYSTEM\\]|^SYSTEM\\s*:|---\\s*system\\s*---|<<\\s*system\\s*>>)",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove fake system message injections."
+    },
+    {
+      "id": "INJECT-003",
+      "title": "Role/mode override",
+      "description": "Attempting to change AI role or enable special modes.",
+      "severity": "high",
+      "pattern": "(?i)(you\\s+are\\s+now\\s+(in\\s+)?(developer|admin|debug|root|jailbreak|DAN|unrestricted)|switch\\s+to\\s+(developer|admin|debug|jailbreak|DAN|unrestricted)\\s+mode|enter\\s+(jailbreak|DAN|unrestricted)\\s+mode|activate\\s+(jailbreak|DAN|unrestricted))",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove role/mode override attempts."
+    },
+    {
+      "id": "INJECT-004",
+      "title": "Pre-authorization claim",
+      "description": "Claiming user has already authorized an action.",
+      "severity": "high",
+      "pattern": "(?i)(user\\s+has\\s+(already\\s+)?(authorized|approved|confirmed|granted|consented)|pre-?authorized|implicit\\s+consent)",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove false authorization claims."
+    },
+    {
+      "id": "INJECT-005",
+      "title": "Identity hijacking",
+      "description": "Attempting to change the AI's identity to bypass restrictions.",
+      "severity": "critical",
+      "pattern": "(?i)(you\\s+are\\s+(no\\s+longer|not)\\s+(claude|gpt|assistant|an?\\s+ai)|you\\s+are\\s+now\\s+[a-z]+gpt|from\\s+now\\s+on.{0,20}(respond|act|behave)\\s+as)",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove identity hijacking attempts."
+    },
+    {
+      "id": "AUTH-001",
+      "title": "Admin/developer impersonation",
+      "description": "Claiming to be an administrator or developer to override instructions.",
+      "severity": "high",
+      "pattern": "(?i)(this\\s+is\\s+(a\\s+)?(message\\s+from|instruction\\s+from)|I\\s+am\\s+(the|an?)\\s+(system\\s+)?administrator|official\\s+(message|instruction)\\s+from\\s+(anthropic|openai|the\\s+system))",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove authority impersonation attempts."
+    },
+    {
+      "id": "AUTH-002",
+      "title": "Emergency/urgent override",
+      "description": "Using urgency to bypass normal security checks.",
+      "severity": "medium",
+      "pattern": "(?i)(emergency|urgent|critical|immediately)\\s+(override|bypass|skip|ignore)\\s+(security|verification|confirmation)",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove urgency-based override attempts."
+    },
+    {
+      "id": "AUTH-003",
+      "title": "Authority claim from company",
+      "description": "Claiming messages are from Anthropic, OpenAI, or other authorities.",
+      "severity": "high",
+      "pattern": "(?i)(message|instruction|directive|order)\\s+from\\s+(anthropic|openai|the)?\\s*(admin|administrator|developer|security\\s+team|support)",
+      "file_extensions": ["md", "txt", "json", "yaml", "yml"],
+      "remediation": "Remove false authority claims."
+    }
+  ]
+}

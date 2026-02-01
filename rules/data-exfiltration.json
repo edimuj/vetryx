@@ -1,0 +1,42 @@
+{
+  "$schema": "./rule-schema.json",
+  "category": "Data Exfiltration",
+  "rules": [
+    {
+      "id": "EXFIL-001",
+      "title": "Webhook/external POST",
+      "description": "POST requests to external URLs may be exfiltrating data.",
+      "severity": "medium",
+      "pattern": "(fetch|axios|request|got|http\\.request)\\s*\\([^)]*['\"]https?://[^'\"]+['\"][^)]*['\"]POST['\"]",
+      "file_extensions": ["js", "ts", "mjs", "cjs"],
+      "remediation": "Audit external network requests and ensure they are expected."
+    },
+    {
+      "id": "EXFIL-002",
+      "title": "Discord/Slack/Telegram webhook",
+      "description": "Webhooks to chat services are commonly used for data exfiltration.",
+      "severity": "high",
+      "pattern": "['\"]https://(discord\\.com/api/webhooks|hooks\\.slack\\.com|api\\.telegram\\.org)/[^'\"]+['\"]",
+      "file_extensions": [],
+      "remediation": "Webhook URLs should be reviewed for legitimacy."
+    },
+    {
+      "id": "NET-001",
+      "title": "Crypto mining indicators",
+      "description": "Patterns associated with cryptocurrency mining.",
+      "severity": "critical",
+      "pattern": "(?i)(coinhive|cryptonight|stratum\\+tcp|xmrig|minergate|hashrate|nonce\\s*[:=])",
+      "file_extensions": [],
+      "remediation": "Remove cryptocurrency mining code."
+    },
+    {
+      "id": "NET-002",
+      "title": "Suspicious IP address",
+      "description": "Hard-coded IP addresses may indicate C2 communication.",
+      "severity": "low",
+      "pattern": "['\"]([0-9]{1,3}\\.){3}[0-9]{1,3}(:[0-9]+)?['\"]",
+      "file_extensions": [],
+      "remediation": "Review hard-coded IP addresses for legitimacy."
+    }
+  ]
+}
