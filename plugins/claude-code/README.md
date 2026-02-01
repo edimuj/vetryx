@@ -11,19 +11,6 @@ Security scanner plugin that automatically protects your Claude Code environment
 
 ## Installation
 
-### Prerequisites
-
-Install the Vetryx CLI first:
-
-```bash
-# From source
-git clone https://github.com/edimuj/vetryx
-cd vetryx
-cargo install --path .
-
-# Or download pre-built binary (coming soon)
-```
-
 ### Install the Plugin
 
 ```bash
@@ -32,16 +19,30 @@ cargo install --path .
 ```
 
 Or add the marketplace:
+
 ```bash
 /plugin marketplace add edimuj/vetryx
 /plugin install vetryx@edimuj-vetryx
+```
+
+### CLI Installation (Optional)
+
+The plugin will **auto-install** the Vetryx CLI on first run. For manual installation:
+
+```bash
+# Quick install (macOS/Linux)
+curl -fsSL https://raw.githubusercontent.com/edimuj/vetryx/main/install.sh | bash
+
+# Or from source
+git clone https://github.com/edimuj/vetryx && cd vetryx && cargo install --path .
 ```
 
 ## Usage
 
 ### Automatic Protection
 
-Once installed, Vetryx automatically scans your plugins when you start a Claude Code session. If issues are found, you'll see a security alert.
+Once installed, Vetryx automatically scans your plugins when you start a Claude Code session. If issues are found,
+you'll see a security alert.
 
 ### Manual Commands
 
@@ -53,14 +54,14 @@ Once installed, Vetryx automatically scans your plugins when you start a Claude 
 
 ## What It Detects
 
-| Category | Examples |
-|----------|----------|
-| Code Execution | `eval()`, `new Function()`, `exec()` |
-| Shell Injection | `child_process`, `subprocess` |
-| Data Exfiltration | Discord webhooks, external POST |
-| Credential Access | SSH keys, AWS credentials |
-| Prompt Injection | Instruction override attempts |
-| Obfuscation | Base64, hex encoding |
+| Category          | Examples                             |
+|-------------------|--------------------------------------|
+| Code Execution    | `eval()`, `new Function()`, `exec()` |
+| Shell Injection   | `child_process`, `subprocess`        |
+| Data Exfiltration | Discord webhooks, external POST      |
+| Credential Access | SSH keys, AWS credentials            |
+| Prompt Injection  | Instruction override attempts        |
+| Obfuscation       | Base64, hex encoding                 |
 
 ## Configuration
 

@@ -5,7 +5,7 @@
   "plugins": [
     {
       "name": "vetryx",
-      "path": "plugin",
+      "path": "plugins/claude-code",
       "description": "Security scanner that automatically protects your Claude Code environment from malicious plugins and MCPs",
       "version": "0.1.0",
       "tags": ["security", "scanner", "protection", "malware-detection"]

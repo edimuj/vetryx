@@ -25,7 +25,9 @@
 
 ---
 
-Vetryx scans AI agent extensions for security threats **before** you install them. It detects prompt injection, malicious code patterns, obfuscated payloads, and data exfiltration attempts in plugins, skills, and MCP server configurations.
+Vetryx scans AI agent extensions for security threats **before** you install them. It detects prompt injection,
+malicious code patterns, obfuscated payloads, and data exfiltration attempts in plugins, skills, and MCP server
+configurations.
 
 ```bash
 # Vet a plugin before installing
@@ -61,13 +63,33 @@ Install the plugin for automatic protection in Claude Code:
 ```
 
 Once installed:
+
 - **Automatic scanning** on every session start
 - **`/vetryx:scan`** for on-demand scanning
 - **`/vetryx:vet`** to check plugins before installing
 
-> **Note**: The plugin requires the Vetryx CLI to be installed (see below).
+> **Note**: The plugin will auto-install the CLI on first run, or you can install it manually (see below).
 
 ### CLI Installation
+
+#### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/edimuj/vetryx/main/install.sh | bash
+```
+
+This auto-detects your platform (macOS/Linux, Intel/ARM) and installs to `~/.local/bin`.
+
+#### Pre-built Binaries
+
+Download from [GitHub Releases](https://github.com/edimuj/vetryx/releases):
+
+| Platform | Architecture | Download |
+|----------|--------------|----------|
+| macOS | Apple Silicon | `vetryx-macos-aarch64` |
+| macOS | Intel | `vetryx-macos-x86_64` |
+| Linux | x86_64 | `vetryx-linux-x86_64` |
+| Windows | x86_64 | `vetryx-windows-x86_64.exe` |
 
 #### From Source
 
@@ -77,9 +99,7 @@ cd vetryx
 cargo install --path .
 ```
 
-#### Pre-built Binaries
-
-Coming soon — releases for macOS, Linux, and Windows.
+Requires Rust 1.70+.
 
 ## Quick Start
 
@@ -115,7 +135,8 @@ VERDICT: ✅ CLEAN - No issues found
 
 ### Multi-Layer Obfuscation Detection
 
-Attackers hide malicious code in base64, hex, unicode escapes, and character codes. Vetryx recursively decodes and analyzes hidden payloads.
+Attackers hide malicious code in base64, hex, unicode escapes, and character codes. Vetryx recursively decodes and
+analyzes hidden payloads.
 
 ```javascript
 // Vetryx catches this:
@@ -217,14 +238,14 @@ vetryx init custom-config.toml # Custom path
 
 Vetryx includes 30+ detection rules across these categories:
 
-| Category | Examples |
-|----------|----------|
-| **Code Execution** | `eval()`, `new Function()`, `exec()` |
-| **Shell Execution** | `child_process`, `subprocess`, `os.system()` |
-| **Data Exfiltration** | Discord webhooks, external POST requests |
-| **Credential Access** | SSH keys, AWS credentials, `.env` files |
-| **Obfuscation** | Base64 decode, hex encoding, char codes |
-| **Prompt Injection** | Instruction override, role hijacking |
+| Category              | Examples                                     |
+|-----------------------|----------------------------------------------|
+| **Code Execution**    | `eval()`, `new Function()`, `exec()`         |
+| **Shell Execution**   | `child_process`, `subprocess`, `os.system()` |
+| **Data Exfiltration** | Discord webhooks, external POST requests     |
+| **Credential Access** | SSH keys, AWS credentials, `.env` files      |
+| **Obfuscation**       | Base64 decode, hex encoding, char codes      |
+| **Prompt Injection**  | Instruction override, role hijacking         |
 
 View all rules: `vetryx rules`
 
@@ -280,10 +301,10 @@ vetryx init
 
 ### Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | No findings above threshold |
-| 1 | Findings at or above `--fail-on` severity |
+| Code | Meaning                                   |
+|------|-------------------------------------------|
+| 0    | No findings above threshold               |
+| 1    | Findings at or above `--fail-on` severity |
 
 ## Output Formats
 
