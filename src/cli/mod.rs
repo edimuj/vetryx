@@ -169,6 +169,48 @@ pub enum Commands {
         output: PathBuf,
     },
 
+    /// Vet and install a plugin/skill (scan first, install if clean)
+    Install {
+        /// GitHub URL or local path to install
+        /// Examples:
+        ///   https://github.com/user/claude-skill
+        ///   ./my-local-skill/
+        source: String,
+
+        /// Installation type (auto-detected if not specified)
+        /// Options: skill, command, plugin, hook
+        #[arg(short = 't', long, value_name = "TYPE")]
+        install_type: Option<String>,
+
+        /// Custom name for the installed component (default: repo/directory name)
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Platform to install to (default: claude-code)
+        #[arg(short, long, default_value = "claude-code")]
+        platform: String,
+
+        /// Force install even with medium severity findings (still blocks critical/high)
+        #[arg(long)]
+        force: bool,
+
+        /// Install even with high severity findings (DANGEROUS - use with caution)
+        #[arg(long)]
+        allow_high: bool,
+
+        /// Skip dependencies (node_modules, etc.) during scan
+        #[arg(long)]
+        skip_deps: bool,
+
+        /// Branch to checkout (default: default branch)
+        #[arg(short, long)]
+        branch: Option<String>,
+
+        /// Dry run - scan and show what would be installed without actually installing
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Vet a plugin/skill before installation (scan from GitHub URL or local path)
     Vet {
         /// GitHub URL or local path to vet

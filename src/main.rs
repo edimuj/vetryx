@@ -719,6 +719,200 @@ async fn main() -> Result<()> {
             println!("Edit this file to customize allowlists and trusted packages.");
         }
 
+        Commands::Install {
+            source,
+            install_type,
+            name,
+            platform,
+            force,
+            allow_high,
+            skip_deps,
+            branch,
+            dry_run,
+        } => {
+            // Validate platform
+            if platform != "claude-code" {
+                return Err(anyhow::anyhow!(
+                    "Currently only 'claude-code' platform is supported for installation"
+                ));
+            }
+
+            eprintln!("{}", "═".repeat(60).bright_blue());
+            eprintln!(
+                "{}  {} Install",
+                "📦".bright_blue(),
+                "Vetryx".bold()
+            );
+            eprintln!("{}", "═".repeat(60).bright_blue());
+            eprintln!();
+
+            // Step 1: Fetch the source
+            let (scan_path, temp_dir, source_name) = if is_github_url(&source) {
+                eprintln!("{} {}", "Fetching:".cyan(), source);
+                let temp_dir = clone_github_repo(&source, branch.as_deref())?;
+                let repo_name = extract_repo_name(&source);
+                (temp_dir.path().to_path_buf(), Some(temp_dir), repo_name)
+            } else {
+                let path = PathBuf::from(&source);
+                if !path.exists() {
+                    return Err(anyhow::anyhow!("Path does not exist: {}", source));
+                }
+                let dir_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+                eprintln!("{} {}", "Source:".cyan(), path.display());
+                (path, None, dir_name)
+            };
+
+            // Step 2: Detect installation type
+            let detected_type = detect_install_type(&scan_path);
+            let final_type = install_type.as_deref().unwrap_or(&detected_type);
+            let install_name = name.unwrap_or_else(|| source_name.clone());
+
+            eprintln!("{} {} ({})", "Component:".cyan(), install_name.bright_white(), final_type);
+            eprintln!();
+
+            // Step 3: Security scan
+            eprintln!("{}", "Scanning for security issues...".yellow());
+            eprintln!();
+
+            let mut filter_config = base_config.clone();
+            if skip_deps {
+                filter_config.skip_node_modules = true;
+            }
+
+            let config = ScanConfig {
+                enable_ai: false,
+                platform: None,
+                min_severity: Severity::Low,
+                filter_config,
+                static_config: AnalyzerConfig::default(),
+                ..Default::default()
+            };
+
+            let scanner = Scanner::with_config(config)?;
+            let scan_report = scanner.scan_path(&scan_path).await?;
+
+            // Show findings summary
+            let (critical, high, medium, low, info) = count_by_severity(&scan_report);
+            let total = critical + high + medium + low + info;
+
+            if total > 0 {
+                // Show the scan report
+                let format: OutputFormat = cli.format.parse().map_err(|e| anyhow::anyhow!("{}", e))?;
+                let mut stdout = io::stdout().lock();
+                report(&scan_report, format, &mut stdout)?;
+                drop(stdout);
+                eprintln!();
+            }
+
+            // Step 4: Determine if installation should proceed
+            let max_sev = scan_report.max_severity();
+            let can_install = match max_sev {
+                Some(Severity::Critical) => {
+                    eprintln!(
+                        "{} {} - Installation blocked",
+                        "🚨 CRITICAL ISSUES FOUND".bright_red().bold(),
+                        format!("({} critical)", critical).red()
+                    );
+                    eprintln!("   This component contains critical security issues and cannot be installed.");
+                    eprintln!("   Review the findings above and contact the author.");
+                    false
+                }
+                Some(Severity::High) => {
+                    if allow_high {
+                        eprintln!(
+                            "{} {} - Proceeding (--allow-high)",
+                            "⚠️  HIGH SEVERITY ISSUES".red().bold(),
+                            format!("({} high)", high).red()
+                        );
+                        true
+                    } else {
+                        eprintln!(
+                            "{} {} - Installation blocked",
+                            "⚠️  HIGH SEVERITY ISSUES".red().bold(),
+                            format!("({} high)", high).red()
+                        );
+                        eprintln!("   Use --allow-high to install anyway (not recommended).");
+                        false
+                    }
+                }
+                Some(Severity::Medium) => {
+                    if force {
+                        eprintln!(
+                            "{} {} - Proceeding (--force)",
+                            "⚡ WARNINGS FOUND".yellow(),
+                            format!("({} medium)", medium).yellow()
+                        );
+                        true
+                    } else {
+                        eprintln!(
+                            "{} {}",
+                            "⚡ WARNINGS FOUND".yellow(),
+                            format!("({} medium)", medium).yellow()
+                        );
+                        eprintln!("   Use --force to install anyway.");
+                        false
+                    }
+                }
+                Some(Severity::Low) | Some(Severity::Info) | None => {
+                    if total > 0 {
+                        eprintln!(
+                            "{} ({} low, {} info)",
+                            "✓ Minor issues only".green(),
+                            low, info
+                        );
+                    } else {
+                        eprintln!("{}", "✓ No security issues found".green().bold());
+                    }
+                    true
+                }
+            };
+
+            if !can_install {
+                eprintln!();
+                eprintln!("{}", "Installation aborted.".red());
+                std::process::exit(1);
+            }
+
+            // Step 5: Install
+            eprintln!();
+
+            if dry_run {
+                eprintln!("{}", "DRY RUN - Would install to:".yellow().bold());
+                let install_path = get_install_path(final_type, &install_name)?;
+                eprintln!("   {}", install_path.display());
+                eprintln!();
+                eprintln!("Run without --dry-run to actually install.");
+            } else {
+                let install_path = install_component(&scan_path, final_type, &install_name)?;
+                eprintln!("{}", "═".repeat(60).green());
+                eprintln!(
+                    "{} Installed {} to:",
+                    "✓".green().bold(),
+                    install_name.bright_white()
+                );
+                eprintln!("   {}", install_path.display().to_string().green());
+                eprintln!("{}", "═".repeat(60).green());
+
+                // Show usage hint
+                match final_type {
+                    "skill" | "command" => {
+                        eprintln!();
+                        eprintln!("{}  Use with: /{}", "💡".yellow(), install_name);
+                    }
+                    _ => {}
+                }
+            }
+
+            // Cleanup temp directory
+            if let Some(temp) = temp_dir {
+                drop(temp); // Explicitly drop to clean up
+            }
+        }
+
         Commands::Vet {
             source,
             output,
@@ -1043,4 +1237,167 @@ fn send_desktop_notification(title: &str, body: &str) {
             .args(["-Command", &script])
             .output();
     }
+}
+
+/// Extract repository name from a GitHub URL.
+fn extract_repo_name(url: &str) -> String {
+    // Handle various URL formats:
+    // https://github.com/user/repo
+    // https://github.com/user/repo.git
+    // git@github.com:user/repo.git
+    let cleaned = url
+        .trim_end_matches('/')
+        .trim_end_matches(".git");
+
+    cleaned
+        .rsplit('/')
+        .next()
+        .or_else(|| cleaned.rsplit(':').next())
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+/// Detect the installation type from the source directory.
+fn detect_install_type(path: &std::path::Path) -> String {
+    // Check for SKILL.md (new skill format)
+    if path.join("SKILL.md").exists() {
+        return "skill".to_string();
+    }
+
+    // Check for a single .md file (legacy command format)
+    let md_files: Vec<_> = std::fs::read_dir(path)
+        .ok()
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .map(|ext| ext == "md")
+                        .unwrap_or(false)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if md_files.len() == 1 {
+        return "command".to_string();
+    }
+
+    // Check for package.json (likely a plugin)
+    if path.join("package.json").exists() {
+        return "plugin".to_string();
+    }
+
+    // Check for hook-like scripts
+    let has_hook_scripts = std::fs::read_dir(path)
+        .ok()
+        .map(|entries| {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                let path = e.path();
+                let ext = path.extension().and_then(|e| e.to_str());
+                matches!(ext, Some("sh") | Some("bash") | Some("zsh"))
+            })
+        })
+        .unwrap_or(false);
+
+    if has_hook_scripts {
+        return "hook".to_string();
+    }
+
+    // Default to skill
+    "skill".to_string()
+}
+
+/// Get the installation path for a component.
+fn get_install_path(install_type: &str, name: &str) -> Result<PathBuf> {
+    let home_dir = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+    let claude_dir = home_dir.join(".claude");
+
+    let path = match install_type {
+        "skill" => claude_dir.join("skills").join(name),
+        "command" => claude_dir.join("commands"),
+        "plugin" => claude_dir.join("plugins").join(name),
+        "hook" => claude_dir.join("hooks").join(name),
+        _ => return Err(anyhow::anyhow!("Unknown install type: {}", install_type)),
+    };
+
+    Ok(path)
+}
+
+/// Install a component to the appropriate directory.
+fn install_component(source: &std::path::Path, install_type: &str, name: &str) -> Result<PathBuf> {
+    let install_path = get_install_path(install_type, name)?;
+
+    // Create parent directories if needed
+    if let Some(parent) = install_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // Check if already exists
+    if install_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Component already exists at {}. Remove it first or use a different name.",
+            install_path.display()
+        ));
+    }
+
+    // Copy the source to the destination
+    match install_type {
+        "command" => {
+            // For legacy commands, copy the .md file directly
+            let md_file = find_main_file(source, "md")?;
+            let dest_file = install_path.join(format!("{}.md", name));
+            std::fs::create_dir_all(&install_path)?;
+            std::fs::copy(&md_file, &dest_file)?;
+            Ok(dest_file)
+        }
+        "skill" | "plugin" | "hook" => {
+            // Copy the entire directory
+            copy_dir_recursive(source, &install_path)?;
+            Ok(install_path)
+        }
+        _ => Err(anyhow::anyhow!("Unknown install type: {}", install_type)),
+    }
+}
+
+/// Find the main file of a specific type in a directory.
+fn find_main_file(dir: &std::path::Path, extension: &str) -> Result<PathBuf> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(ext) = path.extension() {
+                if ext == extension {
+                    return Ok(path);
+                }
+            }
+        }
+    }
+    Err(anyhow::anyhow!("No .{} file found in {}", extension, dir.display()))
+}
+
+/// Recursively copy a directory.
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
+    std::fs::create_dir_all(dst)?;
+
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+
+        if src_path.is_dir() {
+            // Skip common non-essential directories
+            let dir_name = entry.file_name();
+            let skip_dirs = ["node_modules", ".git", "__pycache__", ".venv", "target"];
+            if skip_dirs.iter().any(|&d| dir_name == d) {
+                continue;
+            }
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path)?;
+        }
+    }
+
+    Ok(())
 }
