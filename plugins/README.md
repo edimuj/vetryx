@@ -6,7 +6,7 @@ Platform-specific plugins for Vexscan security scanner integration.
 
 | Plugin | Platform | Status |
 |--------|----------|--------|
-| [claude-code](./claude-code/) | Claude Code | Ready |
+| [claude-code](https://github.com/edimuj/vexscan-claude-code) | Claude Code | Ready |
 | [openclaw](./openclaw/) | OpenClaw | Ready |
 | codex | OpenAI Codex | Planned |
 | cursor | Cursor IDE | Planned |
