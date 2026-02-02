@@ -196,6 +196,18 @@ impl Config {
             return true;
         }
 
+        // Vexscan's own files - skip entirely when scanning.
+        // The security scanner scanning itself is not useful and generates noise from
+        // test samples, documentation examples, and rule definitions.
+        // Safe because: attacker would need to compromise the vexscan plugin itself.
+        if path_str.contains("/vexscan/")
+            || path_str.contains("-vexscan/")
+            || path_str.contains("/vexscan-")
+            || path_str.contains("/edimuj-vexscan/")
+        {
+            return true;
+        }
+
         // Check skip_node_modules flag (user explicitly trusts all node_modules)
         if self.skip_node_modules && path_str.contains("node_modules") {
             return true;
