@@ -3,6 +3,7 @@ export interface VexscanConfig {
   scanOnInstall: boolean;
   minSeverity: string;
   thirdPartyOnly: boolean;
+  skipDeps: boolean;
   cliPath?: string;
 }
 

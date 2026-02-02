@@ -23,6 +23,7 @@ interface PluginConfig {
   scanOnInstall?: boolean;
   minSeverity?: string;
   thirdPartyOnly?: boolean;
+  skipDeps?: boolean;
   cliPath?: string;
 }
 
@@ -39,6 +40,7 @@ const vexscanPlugin = {
         scanOnInstall: raw.scanOnInstall !== false,
         minSeverity: raw.minSeverity || "medium",
         thirdPartyOnly: raw.thirdPartyOnly !== false,
+        skipDeps: raw.skipDeps !== false,
         cliPath: raw.cliPath,
       };
     },
@@ -47,6 +49,7 @@ const vexscanPlugin = {
       scanOnInstall: { label: "Scan on Install", help: "Scan new extensions when installed" },
       minSeverity: { label: "Minimum Severity", help: "Minimum severity level to report" },
       thirdPartyOnly: { label: "Third-party Only", help: "Only scan non-official extensions" },
+      skipDeps: { label: "Skip Dependencies", help: "Skip node_modules to reduce false positives" },
       cliPath: { label: "CLI Path", help: "Path to vexscan binary (auto-detected if empty)" },
     },
   },
@@ -114,6 +117,7 @@ const vexscanPlugin = {
               config: {
                 minSeverity: config.minSeverity,
                 thirdPartyOnly: config.thirdPartyOnly,
+                skipDeps: config.skipDeps,
                 scanOnInstall: config.scanOnInstall,
               },
             });
@@ -121,8 +125,9 @@ const vexscanPlugin = {
 
           if (params.action === "scan") {
             const scanPath = params.path || "~/.openclaw/extensions";
-            const args = ["scan", scanPath, "-f", "json", "--skip-deps", "--min-severity", config.minSeverity];
+            const args = ["scan", scanPath, "-f", "json", "--min-severity", config.minSeverity];
 
+            if (config.skipDeps) args.push("--skip-deps");
             if (params.thirdPartyOnly ?? config.thirdPartyOnly) {
               args.push("--third-party-only");
             }
@@ -140,7 +145,8 @@ const vexscanPlugin = {
           }
 
           if (params.action === "vet") {
-            const args = ["vet", params.source, "-f", "json", "--skip-deps"];
+            const args = ["vet", params.source, "-f", "json"];
+            if (config.skipDeps) args.push("--skip-deps");
             if (params.branch) {
               args.push("--branch", params.branch);
             }
@@ -194,7 +200,8 @@ const vexscanPlugin = {
             try {
               const cli = await ensureCli();
               const scanPath = path || "~/.openclaw/extensions";
-              const args = ["scan", scanPath, "-f", opts.format, "--skip-deps", "--min-severity", opts.minSeverity];
+              const args = ["scan", scanPath, "-f", opts.format, "--min-severity", opts.minSeverity];
+              if (config.skipDeps) args.push("--skip-deps");
               if (opts.thirdPartyOnly) args.push("--third-party-only");
 
               const result = await execVexscan(cli, args);
@@ -215,7 +222,8 @@ const vexscanPlugin = {
           .action(async (source: string, opts: any) => {
             try {
               const cli = await ensureCli();
-              const args = ["vet", source, "-f", opts.format, "--skip-deps"];
+              const args = ["vet", source, "-f", opts.format];
+              if (config.skipDeps) args.push("--skip-deps");
               if (opts.branch) args.push("--branch", opts.branch);
               if (opts.keep) args.push("--keep");
 
@@ -262,7 +270,8 @@ const vexscanPlugin = {
             const cli = await ensureCli();
             api.logger.info("[vexscan] Running startup security scan...");
 
-            const args = ["scan", "~/.openclaw/extensions", "-f", "json", "--skip-deps", "--min-severity", "high"];
+            const args = ["scan", "~/.openclaw/extensions", "-f", "json", "--min-severity", "high"];
+            if (config.skipDeps) args.push("--skip-deps");
             if (config.thirdPartyOnly) args.push("--third-party-only");
 
             const result = await execVexscan(cli, args);
