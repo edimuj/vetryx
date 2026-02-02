@@ -226,15 +226,89 @@ HIGH      DEP-TYPOSQUAT-001  Potential typosquatting: loadsh
 Found 4 issues (2 critical, 2 high)
 ```
 
-## Best Practices
+## Installing Plugins Safely
 
-### 1. Review Third-Party Plugins
+Use `vexscan install` to vet and install plugins in one step. It scans first and only installs if the component passes security checks.
 
-Before installing any plugin:
+### Basic Usage
 
 ```bash
-# Scan before installing
-vexscan scan ./downloaded-plugin --deps --ast
+# Install from GitHub
+vexscan install https://github.com/user/claude-skill
+
+# Install from local path
+vexscan install ./my-skill
+```
+
+### Options
+
+```bash
+# Specify component type (auto-detected if not specified)
+vexscan install <source> -t skill      # skill, command, plugin, or hook
+
+# Custom name for the installed component
+vexscan install <source> --name my-skill
+
+# Preview without actually installing
+vexscan install <source> --dry-run
+
+# Enable extra analysis
+vexscan install <source> --ast --deps
+
+# Skip node_modules during scan
+vexscan install <source> --skip-deps
+
+# Specific branch from GitHub
+vexscan install <source> --branch develop
+```
+
+### Security Levels
+
+The install command has built-in safety gates:
+
+| Severity | Default Behavior | Override |
+|----------|-----------------|----------|
+| Critical | **Blocked** - Cannot install | None (always blocked) |
+| High | **Blocked** - Cannot install | `--allow-high` (dangerous) |
+| Medium | **Blocked** - Warning shown | `--force` |
+| Low/Info | **Allowed** - Installs normally | N/A |
+
+### Example
+
+```bash
+$ vexscan install https://github.com/user/code-review-skill
+
+════════════════════════════════════════════════════════════
+📦  Vexscan Install
+════════════════════════════════════════════════════════════
+
+Fetching: https://github.com/user/code-review-skill
+Component: code-review-skill (skill)
+
+Scanning for security issues...
+
+✓ No security issues found
+
+════════════════════════════════════════════════════════════
+✓ Installed code-review-skill to:
+   /Users/you/.claude/skills/code-review-skill
+════════════════════════════════════════════════════════════
+
+💡  Use with: /code-review-skill
+```
+
+## Best Practices
+
+### 1. Use `vexscan install` for Third-Party Components
+
+Always use the install command rather than manually copying files:
+
+```bash
+# RECOMMENDED: Scan + install in one step
+vexscan install https://github.com/user/plugin --ast --deps
+
+# NOT RECOMMENDED: Manual copy without scanning
+git clone https://github.com/user/plugin ~/.claude/plugins/plugin
 ```
 
 ### 2. Audit Your Skills

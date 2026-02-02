@@ -184,6 +184,21 @@ vexscan vet <source> --keep             # Keep cloned repo after scan
 vexscan vet <source> --fail-on critical # Exit code control
 ```
 
+### `vexscan install`
+
+Vet and install a plugin/skill in one step. Scans first, installs only if clean.
+
+```bash
+vexscan install <source>                # GitHub URL or local path
+vexscan install <source> -t skill       # Specify type (skill, command, plugin, hook)
+vexscan install <source> --name my-skill # Custom name
+vexscan install <source> --dry-run      # Preview without installing
+vexscan install <source> --force        # Install with medium severity warnings
+vexscan install <source> --ast --deps   # Enable extra analysis
+```
+
+Currently supports Claude Code only. Blocks on critical/high severity findings.
+
 ### `vexscan watch`
 
 Monitor for new plugin installations in real-time.
