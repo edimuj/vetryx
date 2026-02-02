@@ -90,6 +90,14 @@ pub enum Commands {
         /// Only scan third-party/unknown plugins (skip official and trusted sources)
         #[arg(long)]
         third_party_only: bool,
+
+        /// Enable AST-based analysis for obfuscation detection (catches patterns like window['eval'])
+        #[arg(long)]
+        ast: bool,
+
+        /// Enable dependency scanning (check package.json for malicious packages)
+        #[arg(long)]
+        deps: bool,
     },
 
     /// Watch for new plugin/skill installations and scan automatically
@@ -209,6 +217,14 @@ pub enum Commands {
         /// Dry run - scan and show what would be installed without actually installing
         #[arg(long)]
         dry_run: bool,
+
+        /// Enable AST-based analysis for obfuscation detection
+        #[arg(long)]
+        ast: bool,
+
+        /// Enable dependency scanning (check package.json for malicious packages)
+        #[arg(long)]
+        deps: bool,
     },
 
     /// Vet a plugin/skill before installation (scan from GitHub URL or local path)
@@ -246,5 +262,13 @@ pub enum Commands {
         /// Branch to checkout (default: default branch)
         #[arg(short, long)]
         branch: Option<String>,
+
+        /// Enable AST-based analysis for obfuscation detection
+        #[arg(long)]
+        ast: bool,
+
+        /// Enable dependency scanning (check package.json for malicious packages)
+        #[arg(long)]
+        deps: bool,
     },
 }

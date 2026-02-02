@@ -30,12 +30,17 @@ pub mod analyzers;
 pub mod cli;
 pub mod config;
 pub mod decoders;
+pub mod deps;
 pub mod reporters;
 pub mod rules;
 pub mod types;
 
 // Re-exports for convenience
-pub use analyzers::{AiAnalyzer, AiAnalyzerConfig, AiBackend, AnalyzerConfig, StaticAnalyzer};
+pub use analyzers::{
+    AiAnalyzer, AiAnalyzerConfig, AiBackend, AnalyzerConfig, AstAnalyzer, AstAnalyzerConfig,
+    StaticAnalyzer,
+};
+pub use deps::{DependencyAnalyzer, DependencyAnalyzerConfig};
 pub use config::Config;
 pub use decoders::Decoder;
 pub use reporters::{report, OutputFormat};
@@ -51,6 +56,7 @@ pub use types::{Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
 use anyhow::Result;
+use std::cell::RefCell;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -61,6 +67,14 @@ pub struct ScanConfig {
     pub enable_ai: bool,
     /// AI analyzer configuration.
     pub ai_config: Option<AiAnalyzerConfig>,
+    /// Enable AST-based analysis for obfuscation detection.
+    pub enable_ast: bool,
+    /// AST analyzer configuration.
+    pub ast_config: Option<AstAnalyzerConfig>,
+    /// Enable dependency scanning (package.json analysis).
+    pub enable_deps: bool,
+    /// Dependency analyzer configuration.
+    pub deps_config: Option<DependencyAnalyzerConfig>,
     /// Static analyzer configuration.
     pub static_config: AnalyzerConfig,
     /// Minimum severity to include in results.
@@ -76,6 +90,10 @@ impl Default for ScanConfig {
         Self {
             enable_ai: false,
             ai_config: None,
+            enable_ast: false,
+            ast_config: None,
+            enable_deps: false,
+            deps_config: None,
             static_config: AnalyzerConfig::default(),
             min_severity: Severity::Low,
             platform: None,
@@ -88,6 +106,8 @@ impl Default for ScanConfig {
 pub struct Scanner {
     config: ScanConfig,
     static_analyzer: StaticAnalyzer,
+    ast_analyzer: Option<RefCell<AstAnalyzer>>,
+    deps_analyzer: Option<DependencyAnalyzer>,
     ai_analyzer: Option<AiAnalyzer>,
 }
 
@@ -101,6 +121,20 @@ impl Scanner {
     pub fn with_config(config: ScanConfig) -> Result<Self> {
         let static_analyzer = StaticAnalyzer::with_config(config.static_config.clone())?;
 
+        let ast_analyzer = if config.enable_ast {
+            let ast_config = config.ast_config.clone().unwrap_or_default();
+            Some(RefCell::new(AstAnalyzer::with_config(ast_config)?))
+        } else {
+            None
+        };
+
+        let deps_analyzer = if config.enable_deps {
+            let deps_config = config.deps_config.clone().unwrap_or_default();
+            Some(DependencyAnalyzer::with_config(deps_config)?)
+        } else {
+            None
+        };
+
         let ai_analyzer = if config.enable_ai {
             config.ai_config.clone().map(AiAnalyzer::new)
         } else {
@@ -110,6 +144,8 @@ impl Scanner {
         Ok(Self {
             config,
             static_analyzer,
+            ast_analyzer,
+            deps_analyzer,
             ai_analyzer,
         })
     }
@@ -155,6 +191,50 @@ impl Scanner {
                 Ok(mut result) => {
                     // Filter by minimum severity
                     result.findings.retain(|f| f.severity >= self.config.min_severity);
+
+                    // Run AST analysis if enabled
+                    if let Some(ref ast_analyzer) = self.ast_analyzer {
+                        match ast_analyzer.borrow_mut().analyze_file(&component.path) {
+                            Ok(ast_result) => {
+                                let mut ast_findings: Vec<_> = ast_result
+                                    .findings
+                                    .into_iter()
+                                    .filter(|f| f.severity >= self.config.min_severity)
+                                    .collect();
+                                result.findings.append(&mut ast_findings);
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "AST analysis failed for {}: {}",
+                                    component.path.display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+
+                    // Run dependency analysis if enabled and file is package.json
+                    if let Some(ref deps_analyzer) = self.deps_analyzer {
+                        if component.path.file_name().map(|n| n == "package.json").unwrap_or(false) {
+                            match deps_analyzer.analyze_file(&component.path) {
+                                Ok(deps_result) => {
+                                    let mut deps_findings: Vec<_> = deps_result
+                                        .findings
+                                        .into_iter()
+                                        .filter(|f| f.severity >= self.config.min_severity)
+                                        .collect();
+                                    result.findings.append(&mut deps_findings);
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Dependency analysis failed for {}: {}",
+                                        component.path.display(),
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
 
                     // Run AI analysis if enabled
                     if let Some(ref ai_analyzer) = self.ai_analyzer {

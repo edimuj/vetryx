@@ -48,6 +48,8 @@ async fn main() -> Result<()> {
             enable_entropy,
             trusted_packages,
             third_party_only,
+            ast,
+            deps,
         } => {
             // Parse platform
             let platform: Option<Platform> = platform
@@ -82,6 +84,8 @@ async fn main() -> Result<()> {
             // Build scan config
             let mut config = ScanConfig {
                 enable_ai: ai,
+                enable_ast: ast,
+                enable_deps: deps,
                 platform,
                 min_severity,
                 filter_config,
@@ -729,6 +733,8 @@ async fn main() -> Result<()> {
             skip_deps,
             branch,
             dry_run,
+            ast,
+            deps,
         } => {
             // Validate platform
             if platform != "claude-code" {
@@ -785,6 +791,8 @@ async fn main() -> Result<()> {
 
             let config = ScanConfig {
                 enable_ai: false,
+                enable_ast: ast,
+                enable_deps: deps,
                 platform: None,
                 min_severity: Severity::Low,
                 filter_config,
@@ -922,6 +930,8 @@ async fn main() -> Result<()> {
             enable_entropy,
             keep,
             branch,
+            ast,
+            deps,
         } => {
             // Parse severities
             let min_severity = parse_severity(&min_severity)?;
@@ -963,6 +973,8 @@ async fn main() -> Result<()> {
             // Build scan config
             let config = ScanConfig {
                 enable_ai: false,
+                enable_ast: ast,
+                enable_deps: deps,
                 platform: None,
                 min_severity,
                 filter_config,
