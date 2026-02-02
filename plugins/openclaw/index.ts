@@ -121,7 +121,7 @@ const vexscanPlugin = {
 
           if (params.action === "scan") {
             const scanPath = params.path || "~/.openclaw/extensions";
-            const args = ["scan", scanPath, "-f", "json", "--min-severity", config.minSeverity];
+            const args = ["scan", scanPath, "-f", "json", "--skip-deps", "--min-severity", config.minSeverity];
 
             if (params.thirdPartyOnly ?? config.thirdPartyOnly) {
               args.push("--third-party-only");
@@ -140,7 +140,7 @@ const vexscanPlugin = {
           }
 
           if (params.action === "vet") {
-            const args = ["vet", params.source, "-f", "json"];
+            const args = ["vet", params.source, "-f", "json", "--skip-deps"];
             if (params.branch) {
               args.push("--branch", params.branch);
             }
@@ -194,7 +194,7 @@ const vexscanPlugin = {
             try {
               const cli = await ensureCli();
               const scanPath = path || "~/.openclaw/extensions";
-              const args = ["scan", scanPath, "-f", opts.format, "--min-severity", opts.minSeverity];
+              const args = ["scan", scanPath, "-f", opts.format, "--skip-deps", "--min-severity", opts.minSeverity];
               if (opts.thirdPartyOnly) args.push("--third-party-only");
 
               const result = await execVexscan(cli, args);
@@ -215,7 +215,7 @@ const vexscanPlugin = {
           .action(async (source: string, opts: any) => {
             try {
               const cli = await ensureCli();
-              const args = ["vet", source, "-f", opts.format];
+              const args = ["vet", source, "-f", opts.format, "--skip-deps"];
               if (opts.branch) args.push("--branch", opts.branch);
               if (opts.keep) args.push("--keep");
 
@@ -262,7 +262,7 @@ const vexscanPlugin = {
             const cli = await ensureCli();
             api.logger.info("[vexscan] Running startup security scan...");
 
-            const args = ["scan", "~/.openclaw/extensions", "-f", "json", "--min-severity", "high"];
+            const args = ["scan", "~/.openclaw/extensions", "-f", "json", "--skip-deps", "--min-severity", "high"];
             if (config.thirdPartyOnly) args.push("--third-party-only");
 
             const result = await execVexscan(cli, args);
