@@ -62,7 +62,7 @@ sha2 = "0.10"  # For file hashing
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"  # Home directory detection
 # Git operations for vet command - vendored for cross-platform builds
-git2 = { version = "0.19", default-features = false, features = ["vendored-libgit2", "vendored-openssl", "https"] }
+git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2", "vendored-openssl", "https"] }
 tempfile = "3"  # Temp directories for vet command
 
 [dev-dependencies]
