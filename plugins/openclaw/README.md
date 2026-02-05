@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@exelerus/vexscan-openclaw"><img src="https://img.shields.io/npm/v/@exelerus/vexscan-openclaw?style=flat-square&color=blue" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@exelerus/openclaw-vexscan"><img src="https://img.shields.io/npm/v/@exelerus/openclaw-vexscan?style=flat-square&color=blue" alt="npm"></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square" alt="License"></a>
 </p>
 
@@ -26,7 +26,7 @@
 
 ```bash
 # From npm
-openclaw plugins install @exelerus/vexscan-openclaw
+openclaw plugins install @exelerus/openclaw-vexscan
 
 # From local path
 openclaw plugins install ./plugins/openclaw
@@ -61,6 +61,14 @@ openclaw vexscan scan ~/.openclaw/extensions
 # Vet before installing
 openclaw vexscan vet https://github.com/user/cool-extension
 
+# Vet and install in one step (blocked if critical/high findings)
+openclaw vexscan install https://github.com/user/cool-extension
+
+# Install with overrides
+openclaw vexscan install ./local-extension --link       # symlink for dev
+openclaw vexscan install @org/extension --force         # allow medium findings
+openclaw vexscan install @org/extension --dry-run       # vet only, don't install
+
 # List detection rules
 openclaw vexscan rules
 ```
@@ -79,19 +87,27 @@ User: "Check my extensions for security issues"
 AI: *uses vexscan tool to scan ~/.openclaw/extensions*
 ```
 
+```
+User: "Install this extension: @org/cool-plugin"
+AI: *uses vexscan install action to vet and install*
+```
+
 ## Configuration
 
-Configure in your OpenClaw settings:
+Configure in your `openclaw.json`:
 
-```yaml
-plugins:
-  vexscan:
-    enabled: true
-    scanOnInstall: true
-    minSeverity: medium
-    thirdPartyOnly: true
-    skipDeps: true
-    # cliPath: /custom/path/to/vexscan  # Optional
+```json
+{
+  "plugins": {
+    "vexscan": {
+      "enabled": true,
+      "scanOnInstall": true,
+      "minSeverity": "medium",
+      "thirdPartyOnly": true,
+      "skipDeps": true
+    }
+  }
+}
 ```
 
 | Option           | Default  | Description                                 |
@@ -101,6 +117,8 @@ plugins:
 | `minSeverity`    | `medium` | Minimum severity to report                  |
 | `thirdPartyOnly` | `true`   | Only scan non-official extensions           |
 | `skipDeps`       | `true`   | Skip node_modules to reduce false positives |
+| `ast`            | `true`   | AST analysis for obfuscation detection      |
+| `deps`           | `true`   | Dependency scanning for supply chain attacks|
 | `cliPath`        | (auto)   | Path to vexscan binary                      |
 
 ## What It Detects

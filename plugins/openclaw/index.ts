@@ -1,6 +1,33 @@
-import { Type } from "@sinclair/typebox";
-import { execVexscan, findVexscan, installVexscan } from "./src/cli-wrapper.js";
-import type { VexscanConfig, ScanResult, VetResult } from "./src/types.js";
+import { Type, type Static } from "@sinclair/typebox";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
+import { execCommand, execVexscan, findVexscan, installVexscan } from "./src/cli-wrapper.js";
+import type { ScanResult, VetResult } from "./src/types.js";
+
+// --- Config schema (TypeBox) ---
+
+const ConfigSchema = Type.Object({
+  enabled: Type.Boolean({ default: true }),
+  scanOnInstall: Type.Boolean({ default: true }),
+  minSeverity: Type.Union(
+    [
+      Type.Literal("info"),
+      Type.Literal("low"),
+      Type.Literal("medium"),
+      Type.Literal("high"),
+      Type.Literal("critical"),
+    ],
+    { default: "medium" },
+  ),
+  thirdPartyOnly: Type.Boolean({ default: true }),
+  skipDeps: Type.Boolean({ default: true }),
+  ast: Type.Boolean({ default: true }),
+  deps: Type.Boolean({ default: true }),
+  cliPath: Type.Optional(Type.String()),
+});
+
+type Config = Static<typeof ConfigSchema>;
+
+// --- Tool parameter schema ---
 
 const VexscanToolSchema = Type.Union([
   Type.Object({
@@ -14,67 +41,103 @@ const VexscanToolSchema = Type.Union([
     branch: Type.Optional(Type.String({ description: "Git branch to check" })),
   }),
   Type.Object({
+    action: Type.Literal("install"),
+    source: Type.String({ description: "npm spec, local path, or GitHub URL to vet and install" }),
+    branch: Type.Optional(Type.String({ description: "Git branch to check" })),
+    force: Type.Optional(Type.Boolean({ description: "Allow medium severity findings" })),
+    allowHigh: Type.Optional(Type.Boolean({ description: "Allow high severity findings (dangerous)" })),
+    link: Type.Optional(Type.Boolean({ description: "Symlink instead of copy (for development)" })),
+  }),
+  Type.Object({
     action: Type.Literal("status"),
   }),
 ]);
 
-interface PluginConfig {
-  enabled?: boolean;
-  scanOnInstall?: boolean;
-  minSeverity?: string;
-  thirdPartyOnly?: boolean;
-  skipDeps?: boolean;
-  cliPath?: string;
+// --- Helpers ---
+
+function parseConfig(value: unknown): Config {
+  const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  return {
+    enabled: raw.enabled !== false,
+    scanOnInstall: raw.scanOnInstall !== false,
+    minSeverity: (raw.minSeverity as Config["minSeverity"]) || "medium",
+    thirdPartyOnly: raw.thirdPartyOnly !== false,
+    skipDeps: raw.skipDeps !== false,
+    ast: raw.ast !== false,
+    deps: raw.deps !== false,
+    cliPath: typeof raw.cliPath === "string" ? raw.cliPath : undefined,
+  };
 }
 
+function getVerdictMessage(verdict: string, findings: number, maxSeverity: string | null): string {
+  switch (verdict) {
+    case "clean":
+      return "No security issues found";
+    case "warnings":
+      return `Found ${findings} issue(s) with max severity: ${maxSeverity}. Review recommended.`;
+    case "high_risk":
+      return `Found ${findings} HIGH severity issue(s). Review carefully before installing.`;
+    case "dangerous":
+      return `Found ${findings} CRITICAL issue(s). Do NOT install without thorough review.`;
+    default:
+      return `Found ${findings} issue(s)`;
+  }
+}
+
+const SEVERITY_RANK: Record<string, number> = {
+  info: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
+
+function checkInstallGate(
+  maxSeverity: string | null | undefined,
+  force: boolean,
+  allowHigh: boolean,
+): { allowed: boolean; reason?: string } {
+  const rank = SEVERITY_RANK[maxSeverity ?? ""] ?? -1;
+
+  if (rank >= SEVERITY_RANK.critical) {
+    return { allowed: false, reason: "CRITICAL severity findings — installation blocked. Cannot override." };
+  }
+  if (rank >= SEVERITY_RANK.high && !allowHigh) {
+    return { allowed: false, reason: "HIGH severity findings — installation blocked. Use allowHigh/--allow-high to override." };
+  }
+  if (rank >= SEVERITY_RANK.medium && !force) {
+    return { allowed: false, reason: "MEDIUM severity findings — installation blocked. Use force/--force to override." };
+  }
+  return { allowed: true };
+}
+
+// --- Plugin ---
+
 const vexscanPlugin = {
-  id: "vexscan",
+  id: "openclaw-vexscan",
   name: "Vexscan Security Scanner",
-  description: "Security scanner for OpenClaw extensions and skills",
+  description: "Security scanner for OpenClaw extensions, skills, and configurations",
+  kind: "tool" as const,
+  configSchema: ConfigSchema,
 
-  configSchema: {
-    parse(value: unknown): VexscanConfig {
-      const raw = (value && typeof value === "object" ? value : {}) as PluginConfig;
-      return {
-        enabled: raw.enabled !== false,
-        scanOnInstall: raw.scanOnInstall !== false,
-        minSeverity: raw.minSeverity || "medium",
-        thirdPartyOnly: raw.thirdPartyOnly !== false,
-        skipDeps: raw.skipDeps !== false,
-        cliPath: raw.cliPath,
-      };
-    },
-    uiHints: {
-      enabled: { label: "Enable Vexscan", help: "Enable automatic security scanning" },
-      scanOnInstall: { label: "Scan on Install", help: "Scan new extensions when installed" },
-      minSeverity: { label: "Minimum Severity", help: "Minimum severity level to report" },
-      thirdPartyOnly: { label: "Third-party Only", help: "Only scan non-official extensions" },
-      skipDeps: { label: "Skip Dependencies", help: "Skip node_modules to reduce false positives" },
-      cliPath: { label: "CLI Path", help: "Path to vexscan binary (auto-detected if empty)" },
-    },
-  },
-
-  register(api: any) {
-    const config = this.configSchema.parse(api.pluginConfig);
+  register(api: OpenClawPluginApi) {
+    const config = parseConfig(api.pluginConfig);
     let cliPath: string | null = null;
 
     const ensureCli = async (): Promise<string> => {
       if (cliPath) return cliPath;
 
-      // Try configured path first
       if (config.cliPath) {
         cliPath = config.cliPath;
         return cliPath;
       }
 
-      // Find in common locations
       const found = await findVexscan();
       if (found) {
         cliPath = found;
         return cliPath;
       }
 
-      // Try auto-install
       api.logger.info("[vexscan] CLI not found, attempting auto-install...");
       const installed = await installVexscan();
       if (installed) {
@@ -84,21 +147,20 @@ const vexscanPlugin = {
       }
 
       throw new Error(
-        "Vexscan CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash"
+        "Vexscan CLI not found. Install with: curl -fsSL https://raw.githubusercontent.com/edimuj/vexscan/main/install.sh | bash",
       );
     };
 
     // Register the security scanner tool
     api.registerTool({
       name: "vexscan",
-      label: "Security Scanner",
       description:
         "Scan extensions and code for security threats including prompt injection, malicious code, obfuscation, and data exfiltration.",
       parameters: VexscanToolSchema,
 
-      async execute(_toolCallId: string, params: any) {
+      async execute(_toolCallId: string, params: Record<string, unknown>) {
         const json = (payload: unknown) => ({
-          content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
           details: payload,
         });
 
@@ -118,17 +180,21 @@ const vexscanPlugin = {
                 minSeverity: config.minSeverity,
                 thirdPartyOnly: config.thirdPartyOnly,
                 skipDeps: config.skipDeps,
+                ast: config.ast,
+                deps: config.deps,
                 scanOnInstall: config.scanOnInstall,
               },
             });
           }
 
           if (params.action === "scan") {
-            const scanPath = params.path || "~/.openclaw/extensions";
+            const scanPath = (params.path as string) || "~/.openclaw/extensions";
             const args = ["scan", scanPath, "-f", "json", "--min-severity", config.minSeverity];
 
+            if (config.ast) args.push("--ast");
+            if (config.deps) args.push("--deps");
             if (config.skipDeps) args.push("--skip-deps");
-            if (params.thirdPartyOnly ?? config.thirdPartyOnly) {
+            if ((params.thirdPartyOnly as boolean | undefined) ?? config.thirdPartyOnly) {
               args.push("--third-party-only");
             }
 
@@ -145,16 +211,17 @@ const vexscanPlugin = {
           }
 
           if (params.action === "vet") {
-            const args = ["vet", params.source, "-f", "json"];
+            const args = ["vet", params.source as string, "-f", "json"];
+            if (config.ast) args.push("--ast");
+            if (config.deps) args.push("--deps");
             if (config.skipDeps) args.push("--skip-deps");
             if (params.branch) {
-              args.push("--branch", params.branch);
+              args.push("--branch", params.branch as string);
             }
 
             const result = await execVexscan(cli, args);
             const parsed = JSON.parse(result.stdout) as VetResult;
 
-            // Determine verdict
             let verdict: string;
             if (parsed.total_findings === 0) {
               verdict = "clean";
@@ -175,6 +242,66 @@ const vexscanPlugin = {
             });
           }
 
+          if (params.action === "install") {
+            // Step 1: Vet the source
+            const vetArgs = ["vet", params.source as string, "-f", "json"];
+            if (config.ast) vetArgs.push("--ast");
+            if (config.deps) vetArgs.push("--deps");
+            if (config.skipDeps) vetArgs.push("--skip-deps");
+            if (params.branch) vetArgs.push("--branch", params.branch as string);
+
+            const vetResult = await execVexscan(cli, vetArgs);
+            const parsed = JSON.parse(vetResult.stdout) as VetResult;
+
+            // Step 2: Check severity gate
+            const gate = checkInstallGate(
+              parsed.max_severity,
+              (params.force as boolean) || false,
+              (params.allowHigh as boolean) || false,
+            );
+
+            if (!gate.allowed) {
+              let verdict = "warnings";
+              if (parsed.max_severity === "critical") verdict = "dangerous";
+              else if (parsed.max_severity === "high") verdict = "high_risk";
+
+              return json({
+                ok: false,
+                action: "install_blocked",
+                verdict,
+                findings: parsed.total_findings || 0,
+                maxSeverity: parsed.max_severity || null,
+                reason: gate.reason,
+                message: getVerdictMessage(verdict, parsed.total_findings || 0, parsed.max_severity ?? null),
+              });
+            }
+
+            // Step 3: Install via openclaw
+            const installArgs = ["plugins", "install"];
+            if (params.link) installArgs.push("-l");
+            installArgs.push(params.source as string);
+
+            const installResult = await execCommand("openclaw", installArgs);
+            if (installResult.exitCode !== 0) {
+              return json({
+                ok: false,
+                error: `Installation failed: ${installResult.stderr || installResult.stdout}`.trim(),
+              });
+            }
+
+            return json({
+              ok: true,
+              action: "installed",
+              source: params.source,
+              findings: parsed.total_findings || 0,
+              maxSeverity: parsed.max_severity || null,
+              message: parsed.total_findings
+                ? `Installed with ${parsed.total_findings} low-severity finding(s). Review recommended.`
+                : "Installed — no security issues found.",
+              installOutput: installResult.stdout.trim(),
+            });
+          }
+
           return json({ ok: false, error: "Unknown action" });
         } catch (err) {
           return json({
@@ -187,7 +314,7 @@ const vexscanPlugin = {
 
     // Register CLI commands
     api.registerCli(
-      ({ program }: any) => {
+      ({ program }) => {
         const vexscan = program.command("vexscan").description("Security scanner for extensions");
 
         vexscan
@@ -201,6 +328,8 @@ const vexscanPlugin = {
               const cli = await ensureCli();
               const scanPath = path || "~/.openclaw/extensions";
               const args = ["scan", scanPath, "-f", opts.format, "--min-severity", opts.minSeverity];
+              if (config.ast) args.push("--ast");
+              if (config.deps) args.push("--deps");
               if (config.skipDeps) args.push("--skip-deps");
               if (opts.thirdPartyOnly) args.push("--third-party-only");
 
@@ -223,6 +352,8 @@ const vexscanPlugin = {
             try {
               const cli = await ensureCli();
               const args = ["vet", source, "-f", opts.format];
+              if (config.ast) args.push("--ast");
+              if (config.deps) args.push("--deps");
               if (config.skipDeps) args.push("--skip-deps");
               if (opts.branch) args.push("--branch", opts.branch);
               if (opts.keep) args.push("--keep");
@@ -230,6 +361,73 @@ const vexscanPlugin = {
               const result = await execVexscan(cli, args);
               console.log(result.stdout);
               if (result.stderr) console.error(result.stderr);
+            } catch (err) {
+              console.error("Error:", err instanceof Error ? err.message : err);
+              process.exit(1);
+            }
+          });
+
+        vexscan
+          .command("install <source>")
+          .description("Vet an extension and install if it passes")
+          .option("-f, --format <format>", "Output format for vet report (cli, json)", "cli")
+          .option("--branch <branch>", "Git branch to check")
+          .option("-l, --link", "Symlink instead of copy (for development)")
+          .option("--force", "Allow medium severity findings")
+          .option("--allow-high", "Allow high severity findings (dangerous)")
+          .option("--dry-run", "Vet only, show what would be installed")
+          .action(async (source: string, opts: any) => {
+            try {
+              const cli = await ensureCli();
+
+              // Step 1: Vet
+              console.log(`Vetting ${source}...`);
+              const vetArgs = ["vet", source, "-f", "json"];
+              if (config.ast) vetArgs.push("--ast");
+              if (config.deps) vetArgs.push("--deps");
+              if (config.skipDeps) vetArgs.push("--skip-deps");
+              if (opts.branch) vetArgs.push("--branch", opts.branch);
+
+              const vetResult = await execVexscan(cli, vetArgs);
+              const parsed = JSON.parse(vetResult.stdout) as VetResult;
+
+              // Show vet report in requested format
+              if (opts.format !== "json") {
+                const reportArgs = ["vet", source, "-f", opts.format];
+                if (config.ast) reportArgs.push("--ast");
+                if (config.deps) reportArgs.push("--deps");
+                if (config.skipDeps) reportArgs.push("--skip-deps");
+                if (opts.branch) reportArgs.push("--branch", opts.branch);
+                const report = await execVexscan(cli, reportArgs);
+                console.log(report.stdout);
+              } else {
+                console.log(vetResult.stdout);
+              }
+
+              // Step 2: Check severity gate
+              const gate = checkInstallGate(parsed.max_severity, opts.force, opts.allowHigh);
+              if (!gate.allowed) {
+                console.error(`\nInstallation blocked: ${gate.reason}`);
+                process.exit(1);
+              }
+
+              if (opts.dryRun) {
+                console.log("\n[dry-run] Would install:", source);
+                return;
+              }
+
+              // Step 3: Install
+              console.log("\nSecurity check passed. Installing...");
+              const installArgs = ["plugins", "install"];
+              if (opts.link) installArgs.push("-l");
+              installArgs.push(source);
+
+              const installResult = await execCommand("openclaw", installArgs);
+              if (installResult.exitCode !== 0) {
+                console.error("Installation failed:", installResult.stderr || installResult.stdout);
+                process.exit(1);
+              }
+              console.log(installResult.stdout.trim());
             } catch (err) {
               console.error("Error:", err instanceof Error ? err.message : err);
               process.exit(1);
@@ -256,7 +454,7 @@ const vexscanPlugin = {
             }
           });
       },
-      { commands: ["vexscan"] }
+      { commands: ["vexscan"] },
     );
 
     // Register startup service for initial scan
@@ -271,6 +469,8 @@ const vexscanPlugin = {
             api.logger.info("[vexscan] Running startup security scan...");
 
             const args = ["scan", "~/.openclaw/extensions", "-f", "json", "--min-severity", "high"];
+            if (config.ast) args.push("--ast");
+            if (config.deps) args.push("--deps");
             if (config.skipDeps) args.push("--skip-deps");
             if (config.thirdPartyOnly) args.push("--third-party-only");
 
@@ -279,14 +479,14 @@ const vexscanPlugin = {
 
             if (parsed.total_findings && parsed.total_findings > 0) {
               api.logger.warn(
-                `[vexscan] Security scan found ${parsed.total_findings} issue(s) with max severity: ${parsed.max_severity}`
+                `[vexscan] Security scan found ${parsed.total_findings} issue(s) with max severity: ${parsed.max_severity}`,
               );
             } else {
               api.logger.info("[vexscan] Security scan complete - no issues found");
             }
           } catch (err) {
             api.logger.error(
-              `[vexscan] Startup scan failed: ${err instanceof Error ? err.message : err}`
+              `[vexscan] Startup scan failed: ${err instanceof Error ? err.message : err}`,
             );
           }
         },
@@ -295,20 +495,5 @@ const vexscanPlugin = {
     }
   },
 };
-
-function getVerdictMessage(verdict: string, findings: number, maxSeverity: string | null): string {
-  switch (verdict) {
-    case "clean":
-      return "No security issues found";
-    case "warnings":
-      return `Found ${findings} issue(s) with max severity: ${maxSeverity}. Review recommended.`;
-    case "high_risk":
-      return `Found ${findings} HIGH severity issue(s). Review carefully before installing.`;
-    case "dangerous":
-      return `Found ${findings} CRITICAL issue(s). Do NOT install without thorough review.`;
-    default:
-      return `Found ${findings} issue(s)`;
-  }
-}
 
 export default vexscanPlugin;

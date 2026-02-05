@@ -111,6 +111,37 @@ export async function installVexscan(): Promise<string | null> {
 }
 
 /**
+ * Execute an arbitrary command with arguments
+ */
+export async function execCommand(cmd: string, args: string[]): Promise<ExecResult> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, NO_COLOR: "1" },
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      resolve({ stdout, stderr, exitCode: code ?? 0 });
+    });
+
+    proc.on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+/**
  * Execute vexscan CLI with arguments
  */
 export async function execVexscan(cliPath: string, args: string[]): Promise<ExecResult> {

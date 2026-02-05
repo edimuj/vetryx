@@ -1,6 +1,7 @@
 {
-  "id": "vexscan",
+  "id": "openclaw-vexscan",
   "name": "Vexscan Security Scanner",
+  "kind": "tool",
   "description": "Security scanner for OpenClaw extensions, skills, and configurations. Detects prompt injection, malicious code, obfuscation, and data exfiltration attempts.",
   "configSchema": {
     "type": "object",
@@ -26,6 +27,21 @@
         "type": "boolean",
         "default": true,
         "description": "Only scan third-party (non-official) extensions"
+      },
+      "skipDeps": {
+        "type": "boolean",
+        "default": true,
+        "description": "Skip node_modules to reduce false positives"
+      },
+      "ast": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable AST analysis for obfuscation detection"
+      },
+      "deps": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable dependency scanning for supply chain attacks"
       },
       "cliPath": {
         "type": "string",

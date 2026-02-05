@@ -64,10 +64,10 @@ Install the plugin for automatic protection:
 
 ```bash
 # Add the marketplace
-/plugin marketplace add edimuj/vexscan-claude-code
+claude plugin marketplace add edimuj/vexscan-claude-code
 
 # Install the plugin
-/plugin install vexscan
+claude plugin install vexscan@vexscan-claude-code
 ```
 
 **Features:** Automatic scanning on session start, `/vexscan:scan` for on-demand scanning, `/vexscan:vet` to check

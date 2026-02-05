@@ -1,10 +1,14 @@
 {
-  "name": "@exelerus/vexscan-openclaw",
-  "version": "0.1.4",
+  "name": "@exelerus/openclaw-vexscan",
+  "version": "1.0.0",
   "description": "Vexscan security scanner plugin for OpenClaw",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "openclaw": {
+    "extensions": ["./index.ts"],
+    "slots": ["tool"]
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -30,7 +34,7 @@
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "openclaw": ">=0.1.0"
+    "openclaw": ">=2026.1.26"
   },
   "peerDependenciesMeta": {
     "openclaw": {

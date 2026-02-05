@@ -10,17 +10,61 @@ Vexscan scans extensions, skills, and code for security threats. Use it when:
 
 ## When to use Vexscan
 
-| User intent                          | Use Vexscan?                         |
-|--------------------------------------|-------------------------------------|
-| "Install this extension from GitHub" | Yes — vet before installing         |
-| "Is my setup secure?"                | Yes — scan all extensions           |
-| "This extension is acting weird"     | Yes — scan for malicious patterns   |
-| "Show me my installed extensions"    | No — use OpenClaw's built-in list   |
-| "What does this code do?"            | Maybe — scan if it looks suspicious |
+| User intent                          | Action                                |
+|--------------------------------------|---------------------------------------|
+| "Install this extension from GitHub" | Use **install** — vets and installs   |
+| "Is this extension safe?"            | Use **vet** — scan without installing |
+| "Is my setup secure?"                | Use **scan** — scan all extensions    |
+| "This extension is acting weird"     | Use **scan** — scan for malicious patterns |
+| "Show me my installed extensions"    | No — use OpenClaw's built-in list     |
 
-## Basic usage
+## Install (vet + install in one step)
 
-### Scan installed extensions
+**Always prefer install over vet** when the user wants to add an extension. It vets first and only installs if the security check passes.
+
+```json
+{
+  "action": "install",
+  "source": "https://github.com/user/cool-extension"
+}
+```
+
+Returns on success:
+
+```json
+{
+  "ok": true,
+  "action": "installed",
+  "findings": 0,
+  "message": "Installed — no security issues found."
+}
+```
+
+Returns when blocked:
+
+```json
+{
+  "ok": false,
+  "action": "install_blocked",
+  "verdict": "high_risk",
+  "findings": 3,
+  "maxSeverity": "high",
+  "reason": "HIGH severity findings — installation blocked. Use allowHigh/--allow-high to override."
+}
+```
+
+### Severity gates
+
+| Max severity | Default    | Override         |
+|-------------|------------|------------------|
+| Critical    | **Blocked** | Cannot override  |
+| High        | **Blocked** | `"allowHigh": true` |
+| Medium      | **Blocked** | `"force": true`  |
+| Low / Info  | Allowed    | —                |
+
+**Never set `allowHigh` or `force` without explaining the risks to the user first.**
+
+## Scan installed extensions
 
 ```json
 {
@@ -46,9 +90,9 @@ Returns:
 }
 ```
 
-### Vet before installing
+## Vet without installing
 
-When user wants to install an extension, **always vet first**:
+Use when the user just wants a security assessment:
 
 ```json
 {
@@ -57,7 +101,7 @@ When user wants to install an extension, **always vet first**:
 }
 ```
 
-Returns verdict:
+Returns:
 
 ```json
 {
@@ -65,18 +109,6 @@ Returns verdict:
   "verdict": "clean",
   "findings": 0,
   "message": "No security issues found"
-}
-```
-
-Or if issues found:
-
-```json
-{
-  "ok": true,
-  "verdict": "warnings",
-  "findings": 2,
-  "maxSeverity": "medium",
-  "message": "Found 2 medium-severity issues"
 }
 ```
 
@@ -91,7 +123,7 @@ Or if issues found:
 
 ## Important
 
-- **Always vet** extensions before recommending installation
-- If verdict is `high_risk` or `dangerous`, explain the specific threats found
-- Scanning is fast — prefer caution over speed
+- **Always use install** (not raw `openclaw plugins install`) so extensions are vetted first
+- If install is blocked, explain the specific threats found
+- Never override severity gates without user consent
 - Third-party extensions are higher risk than official ones
