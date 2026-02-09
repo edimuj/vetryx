@@ -115,7 +115,7 @@ check_existing() {
         local current_version
         current_version=$(vexscan --version 2>/dev/null | head -1 || echo "unknown")
         warn "Vexscan is already installed: $current_version"
-        read -p "Do you want to reinstall/update? [y/N] " -n 1 -r
+        read -p "Do you want to reinstall/update? [y/N] " -n 1 -r < /dev/tty
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             info "Skipping installation."
@@ -126,9 +126,9 @@ check_existing() {
 
 main() {
     echo ""
-    echo "  ╦  ╦┌─┐┌┬┐┬─┐┬ ┬─┐ ┬"
-    echo "  ╚╗╔╝├┤  │ ├┬┘└┬┘┌┴┬┘"
-    echo "   ╚╝ └─┘ ┴ ┴└─ ┴ ┴ └─"
+    echo "  ╦  ╦┌─┐─┐ ┬┌─┐┌─┐┌─┐┌┐┌"
+    echo "  ╚╗╔╝├┤ ┌┴┬┘└─┐│  ├─┤│││"
+    echo "   ╚╝ └─┘┴ └─└─┘└─┘┴ ┴┘└┘"
     echo "  Security Scanner for AI Agents"
     echo ""
 
