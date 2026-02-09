@@ -34,6 +34,8 @@ pub mod decoders;
 pub mod deps;
 pub mod reporters;
 pub mod rules;
+pub mod scope;
+pub mod trace;
 pub mod types;
 
 // Re-exports for convenience
@@ -54,6 +56,8 @@ pub use rules::{
     },
     Rule, RuleMetadata, RuleSet, RuleSource, TestCases,
 };
+pub use scope::{detect_scope, InstallScope, ScopeMap};
+pub use trace::ReferenceGraph;
 pub use types::{truncate, Finding, Platform, ScanReport, ScanResult, Severity};
 
 use adapters::{create_adapter, detect_platform, PlatformAdapter};
@@ -87,6 +91,10 @@ pub struct ScanConfig {
     pub filter_config: Config,
     /// Enable result caching (default true, disabled when AI is on).
     pub enable_cache: bool,
+    /// Only scan installed/published files (skip dev-only files entirely).
+    pub installed_only: bool,
+    /// Scan all files at full severity (disable scope-based severity capping).
+    pub include_dev: bool,
 }
 
 impl Default for ScanConfig {
@@ -103,6 +111,8 @@ impl Default for ScanConfig {
             platform: None,
             filter_config: Config::load_default(),
             enable_cache: true,
+            installed_only: false,
+            include_dev: false,
         }
     }
 }
@@ -194,7 +204,25 @@ impl Scanner {
 
         tracing::info!("Discovered {} components to scan", components.len());
 
+        // Detect installation scope
+        let scope_map = scope::detect_scope(path);
+        tracing::info!(
+            "Project type: {:?}, manifest-based: {}",
+            scope_map.project_type,
+            scope_map.manifest_based
+        );
+
+        // Build agent instruction reference graph
+        let ref_graph = trace::build_reference_graph(&components, path);
+        if ref_graph.reachable_count() > 0 {
+            tracing::info!(
+                "Agent trace: {} files reachable from instruction files",
+                ref_graph.reachable_count()
+            );
+        }
+
         // Filter components and read file contents once
+        let installed_only = self.config.installed_only;
         let scannable: Vec<_> = components
             .into_iter()
             .filter(|c| {
@@ -207,6 +235,17 @@ impl Scanner {
                 {
                     tracing::debug!("Skipping (trusted source): {}", c.path.display());
                     return false;
+                }
+                // Skip dev-only files when --installed-only is set
+                // (but keep agent-reachable files even if dev-only)
+                if installed_only {
+                    let file_scope = scope_map.classify(&c.path, path);
+                    if file_scope == scope::InstallScope::DevOnly
+                        && !ref_graph.is_agent_reachable(&c.path)
+                    {
+                        tracing::debug!("Skipping (dev-only): {}", c.path.display());
+                        return false;
+                    }
                 }
                 true
             })
@@ -288,8 +327,83 @@ impl Scanner {
         });
 
         // Phase 2: Sequential AST + deps analysis (reuses already-read content)
+        let include_dev = self.config.include_dev;
         for (component, content, mut result, cache_hit) in static_results {
+            // Classify file scope — elevate agent-reachable dev-only files
+            let mut file_scope = scope_map.classify(&component.path, path);
+            let is_agent_reachable = ref_graph.is_agent_reachable(&component.path);
+            if is_agent_reachable && file_scope == scope::InstallScope::DevOnly {
+                file_scope = scope::InstallScope::Installed;
+            }
+            result.install_scope = Some(file_scope);
+
+            // Track scope counts
+            if is_agent_reachable {
+                report.agent_reachable_count += 1;
+            }
+            match file_scope {
+                scope::InstallScope::Installed => report.installed_file_count += 1,
+                scope::InstallScope::DevOnly => report.dev_only_file_count += 1,
+            }
+
+            // Add agent-reachable metadata to findings
+            if is_agent_reachable {
+                let refs = ref_graph.referenced_by(&component.path);
+                let ref_names: String = refs
+                    .iter()
+                    .filter_map(|p| p.file_name().and_then(|n| n.to_str()))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                for finding in &mut result.findings {
+                    finding
+                        .metadata
+                        .insert("agent_reachable".to_string(), "true".to_string());
+                    finding
+                        .metadata
+                        .insert("referenced_by".to_string(), ref_names.clone());
+                }
+            }
+
+            // Cap MDCODE rules to Medium on non-instruction, non-agent-reachable
+            // markdown files. Shell commands in READMEs are human-facing docs — only
+            // dangerous when an instruction file chains to them.
+            if !is_agent_reachable && !trace::is_instruction_file(&component.path) {
+                if let Some(ext) = component.path.extension().and_then(|e| e.to_str()) {
+                    if matches!(ext, "md" | "markdown") {
+                        for finding in &mut result.findings {
+                            if finding.rule_id.starts_with("MDCODE-")
+                                && finding.severity > Severity::Low
+                            {
+                                finding.metadata.insert(
+                                    "original_severity".to_string(),
+                                    format!("{}", finding.severity),
+                                );
+                                finding.severity = Severity::Low;
+                            }
+                        }
+                    }
+                }
+            }
+
             if cache_hit {
+                // Apply scope-based severity cap to cached findings
+                if file_scope == scope::InstallScope::DevOnly && !include_dev {
+                    for finding in &mut result.findings {
+                        if finding.severity > Severity::Low
+                            && !scope::is_scope_cap_exempt(&finding.rule_id)
+                        {
+                            finding.metadata.insert(
+                                "original_severity".to_string(),
+                                format!("{}", finding.severity),
+                            );
+                            finding
+                                .metadata
+                                .insert("install_scope".to_string(), "dev_only".to_string());
+                            finding.severity = Severity::Low;
+                        }
+                    }
+                }
+
                 // Apply severity/disabled-rule filter to cached findings
                 result.findings.retain(|f| {
                     f.severity >= min_severity && !filter_config.is_rule_disabled(&f.rule_id)
@@ -370,6 +484,24 @@ impl Scanner {
                             component.path.display(),
                             e
                         );
+                    }
+                }
+            }
+
+            // Apply scope-based severity cap (post-cache, like doc-file cap)
+            if file_scope == scope::InstallScope::DevOnly && !include_dev {
+                for finding in &mut result.findings {
+                    if finding.severity > Severity::Low
+                        && !scope::is_scope_cap_exempt(&finding.rule_id)
+                    {
+                        finding.metadata.insert(
+                            "original_severity".to_string(),
+                            format!("{}", finding.severity),
+                        );
+                        finding
+                            .metadata
+                            .insert("install_scope".to_string(), "dev_only".to_string());
+                        finding.severity = Severity::Low;
                     }
                 }
             }

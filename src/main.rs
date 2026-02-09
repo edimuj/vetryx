@@ -52,6 +52,8 @@ async fn main() -> Result<()> {
             ast,
             deps,
             no_cache,
+            installed_only,
+            include_dev,
         } => {
             // Parse platform
             let platform: Option<Platform> = platform
@@ -93,6 +95,8 @@ async fn main() -> Result<()> {
                 min_severity,
                 filter_config,
                 static_config,
+                installed_only,
+                include_dev,
                 ..Default::default()
             };
 
@@ -154,6 +158,8 @@ async fn main() -> Result<()> {
             third_party_only,
             min_severity,
             watch_paths,
+            installed_only,
+            include_dev,
         } => {
             use notify::{Config as NotifyConfig, RecommendedWatcher, RecursiveMode, Watcher};
             use std::sync::mpsc::channel;
@@ -220,6 +226,8 @@ async fn main() -> Result<()> {
                 min_severity,
                 filter_config: filter_config.clone(),
                 static_config: AnalyzerConfig::default(),
+                installed_only,
+                include_dev,
                 ..Default::default()
             };
 
@@ -760,6 +768,8 @@ async fn main() -> Result<()> {
             ast,
             deps,
             no_cache,
+            installed_only,
+            include_dev,
         } => {
             // Validate platform
             if platform != "claude-code" {
@@ -824,6 +834,8 @@ async fn main() -> Result<()> {
                 min_severity: Severity::Low,
                 filter_config,
                 static_config: AnalyzerConfig::default(),
+                installed_only,
+                include_dev,
                 ..Default::default()
             };
 
@@ -962,6 +974,8 @@ async fn main() -> Result<()> {
             ast,
             deps,
             no_cache,
+            installed_only,
+            include_dev,
         } => {
             // Parse severities
             let min_severity = parse_severity(&min_severity)?;
@@ -1006,6 +1020,8 @@ async fn main() -> Result<()> {
                 min_severity,
                 filter_config,
                 static_config,
+                installed_only,
+                include_dev,
                 ..Default::default()
             };
 

@@ -1,5 +1,6 @@
 //! Output formatters for scan results.
 
+use crate::scope::InstallScope;
 use crate::types::{ScanReport, Severity};
 use anyhow::Result;
 use colored::Colorize;
@@ -65,7 +66,23 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
     if let Some(ref platform) = report.platform {
         writeln!(writer, "  Platform:     {}", platform)?;
     }
-    writeln!(writer, "  Files scanned: {}", report.results.len())?;
+    if report.installed_file_count > 0 || report.dev_only_file_count > 0 {
+        let agent_tag = if report.agent_reachable_count > 0 {
+            format!(", {} agent-reachable", report.agent_reachable_count)
+        } else {
+            String::new()
+        };
+        writeln!(
+            writer,
+            "  Files scanned: {} ({} installed, {} dev-only{})",
+            report.results.len(),
+            report.installed_file_count,
+            report.dev_only_file_count,
+            agent_tag
+        )?;
+    } else {
+        writeln!(writer, "  Files scanned: {}", report.results.len())?;
+    }
     writeln!(writer, "  Total findings: {}", report.total_findings())?;
     writeln!(writer, "  Scan time:    {}ms", report.total_time_ms)?;
     writeln!(writer)?;
@@ -115,10 +132,24 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
                 continue;
             }
 
+            let has_agent_reachable = result.findings.iter().any(|f| {
+                f.metadata
+                    .get("agent_reachable")
+                    .map(|v| v == "true")
+                    .unwrap_or(false)
+            });
+            let scope_tag = if has_agent_reachable {
+                format!(" {}", "[agent-reachable]".yellow())
+            } else if result.install_scope == Some(InstallScope::DevOnly) {
+                format!(" {}", "[dev-only]".dimmed())
+            } else {
+                String::new()
+            };
             writeln!(
                 writer,
-                "{}",
-                format!("── {} ──", result.path.display()).bright_blue()
+                "{}{}",
+                format!("── {} ──", result.path.display()).bright_blue(),
+                scope_tag
             )?;
 
             for finding in &result.findings {
@@ -130,8 +161,32 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
                     Severity::Info => "○ INFO".white(),
                 };
 
+                let scope_tag = if finding
+                    .metadata
+                    .get("agent_reachable")
+                    .map(|v| v == "true")
+                    .unwrap_or(false)
+                {
+                    let via = finding
+                        .metadata
+                        .get("referenced_by")
+                        .map(|refs| format!(" {}", format!("(via {})", refs).dimmed()))
+                        .unwrap_or_default();
+                    format!(" {}{}", "[agent-reachable]".yellow(), via)
+                } else if finding.metadata.get("install_scope").map(|s| s.as_str())
+                    == Some("dev_only")
+                {
+                    format!(" {}", "[dev-only]".dimmed())
+                } else {
+                    String::new()
+                };
+
                 writeln!(writer)?;
-                writeln!(writer, "  {} [{}]", severity_indicator, finding.rule_id)?;
+                writeln!(
+                    writer,
+                    "  {} [{}]{}",
+                    severity_indicator, finding.rule_id, scope_tag
+                )?;
                 writeln!(writer, "  {}", finding.title.bold())?;
                 writeln!(
                     writer,
@@ -292,7 +347,23 @@ fn report_markdown<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> 
     if let Some(ref platform) = report.platform {
         writeln!(writer, "| Platform | {} |", platform)?;
     }
-    writeln!(writer, "| Files Scanned | {} |", report.results.len())?;
+    if report.installed_file_count > 0 || report.dev_only_file_count > 0 {
+        let agent_tag = if report.agent_reachable_count > 0 {
+            format!(", {} agent-reachable", report.agent_reachable_count)
+        } else {
+            String::new()
+        };
+        writeln!(
+            writer,
+            "| Files Scanned | {} ({} installed, {} dev-only{}) |",
+            report.results.len(),
+            report.installed_file_count,
+            report.dev_only_file_count,
+            agent_tag
+        )?;
+    } else {
+        writeln!(writer, "| Files Scanned | {} |", report.results.len())?;
+    }
     writeln!(writer, "| Total Findings | {} |", report.total_findings())?;
     writeln!(writer, "| Scan Time | {}ms |", report.total_time_ms)?;
     writeln!(writer)?;

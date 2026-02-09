@@ -81,7 +81,7 @@ pub enum Commands {
         min_severity: String,
 
         /// Fail with exit code 1 if any findings at this severity or above
-        #[arg(long)]
+        #[arg(long, default_value = "high")]
         fail_on: Option<String>,
 
         /// Skip node_modules directories entirely (focus on actual code)
@@ -111,6 +111,14 @@ pub enum Commands {
         /// Disable result caching (rescan everything)
         #[arg(long)]
         no_cache: bool,
+
+        /// Only scan installed/published files (skip tests, examples, docs)
+        #[arg(long)]
+        installed_only: bool,
+
+        /// Scan all files at full severity (disable scope-based severity capping)
+        #[arg(long)]
+        include_dev: bool,
     },
 
     /// Watch for new plugin/skill installations and scan automatically
@@ -134,6 +142,14 @@ pub enum Commands {
         /// Custom paths to watch (can be used multiple times)
         #[arg(long = "path", value_name = "PATH")]
         watch_paths: Vec<std::path::PathBuf>,
+
+        /// Only scan installed/published files (skip tests, examples, docs)
+        #[arg(long)]
+        installed_only: bool,
+
+        /// Scan all files at full severity (disable scope-based severity capping)
+        #[arg(long)]
+        include_dev: bool,
     },
 
     /// List all discovered components for a platform
@@ -242,6 +258,14 @@ pub enum Commands {
         /// Disable result caching (rescan everything)
         #[arg(long)]
         no_cache: bool,
+
+        /// Only scan installed/published files (skip tests, examples, docs)
+        #[arg(long)]
+        installed_only: bool,
+
+        /// Scan all files at full severity (disable scope-based severity capping)
+        #[arg(long)]
+        include_dev: bool,
     },
 
     /// Vet a plugin/skill before installation (scan from GitHub URL or local path)
@@ -291,6 +315,14 @@ pub enum Commands {
         /// Disable result caching (rescan everything)
         #[arg(long)]
         no_cache: bool,
+
+        /// Only scan installed/published files (skip tests, examples, docs)
+        #[arg(long)]
+        installed_only: bool,
+
+        /// Scan all files at full severity (disable scope-based severity capping)
+        #[arg(long)]
+        include_dev: bool,
     },
 
     /// Manage the scan result cache

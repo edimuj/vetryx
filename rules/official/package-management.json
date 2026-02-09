@@ -7,8 +7,11 @@
       "title": "Global npm package installation",
       "description": "Installing npm packages globally can place malicious code in system paths.",
       "severity": "high",
-      "pattern": "\\bnpm\\s+(install|i)\\s+(-g|--global)\\b",
-      "file_extensions": [],
+      "pattern": "\\bnpm\\s+(install|i)\\s+(-g|--global)\\s+\\S+",
+      "file_extensions": ["sh", "bash", "zsh", "bat", "cmd", "ps1"],
+      "exclude_patterns": [
+        "(-g|--global)\\s+(pnpm|yarn|typescript|ts-node|tsx|nodemon|pm2|eslint|prettier|vercel|netlify-cli|firebase-tools|wrangler|create-react-app|http-server|serve|live-server|@angular/cli|@vue/cli|turbo|nx|lerna|concurrently|rimraf|cross-env|dotenv-cli|npm-check-updates|depcheck|np)(@\\S*)?$"
+      ],
       "remediation": "Use local package installations. Plugins should not install global packages.",
       "test_cases": {
         "should_match": [
@@ -27,7 +30,7 @@
       "description": "Using sudo with pip installs packages system-wide, which can affect the entire system.",
       "severity": "high",
       "pattern": "\\bsudo\\s+pip[3]?\\s+install\\b",
-      "file_extensions": [],
+      "file_extensions": ["sh", "bash", "zsh", "bat", "cmd", "ps1"],
       "remediation": "Use virtual environments or --user flag for pip installations.",
       "test_cases": {
         "should_match": [
@@ -45,8 +48,11 @@
       "title": "Yarn global package installation",
       "description": "Installing yarn packages globally can place malicious code in system paths.",
       "severity": "high",
-      "pattern": "\\byarn\\s+global\\s+(add|install)\\b",
-      "file_extensions": [],
+      "pattern": "\\byarn\\s+global\\s+(add|install)\\s+\\S+",
+      "file_extensions": ["sh", "bash", "zsh", "bat", "cmd", "ps1"],
+      "exclude_patterns": [
+        "(add|install)\\s+(pnpm|yarn|typescript|ts-node|tsx|nodemon|pm2|eslint|prettier|vercel|netlify-cli|firebase-tools|wrangler|create-react-app|http-server|serve|live-server|@angular/cli|@vue/cli|turbo|nx|lerna|concurrently|rimraf|cross-env|dotenv-cli|npm-check-updates|depcheck|np)(@\\S*)?$"
+      ],
       "remediation": "Use local package installations instead of global.",
       "test_cases": {
         "should_match": [
@@ -84,7 +90,7 @@
       "description": "Installing packages directly from URLs bypasses registry security checks.",
       "severity": "high",
       "pattern": "\\b(pip[3]?\\s+install|npm\\s+(install|i))\\s+[^\\n]*https?://[^\\s]+",
-      "file_extensions": ["sh", "bash", "zsh", "md"],
+      "file_extensions": ["sh", "bash", "zsh"],
       "remediation": "Install packages from official registries only.",
       "test_cases": {
         "should_match": [

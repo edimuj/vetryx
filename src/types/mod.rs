@@ -1,5 +1,6 @@
 //! Core type definitions for the Vexscan security scanner.
 
+use crate::scope::InstallScope;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -177,6 +178,9 @@ pub struct ScanResult {
     pub scan_time_ms: u64,
     /// SHA256 hash of the scanned content.
     pub content_hash: Option<String>,
+    /// Installation scope classification.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub install_scope: Option<InstallScope>,
 }
 
 impl ScanResult {
@@ -186,6 +190,7 @@ impl ScanResult {
             findings: Vec::new(),
             scan_time_ms: 0,
             content_hash: None,
+            install_scope: None,
         }
     }
 
@@ -218,6 +223,15 @@ pub struct ScanReport {
     pub total_time_ms: u64,
     /// Timestamp of the scan.
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Number of installed-scope files scanned.
+    #[serde(default)]
+    pub installed_file_count: usize,
+    /// Number of dev-only files scanned.
+    #[serde(default)]
+    pub dev_only_file_count: usize,
+    /// Number of agent-reachable files (referenced by instruction files).
+    #[serde(default)]
+    pub agent_reachable_count: usize,
 }
 
 impl ScanReport {
@@ -228,6 +242,9 @@ impl ScanReport {
             results: Vec::new(),
             total_time_ms: 0,
             timestamp: chrono::Utc::now(),
+            installed_file_count: 0,
+            dev_only_file_count: 0,
+            agent_reachable_count: 0,
         }
     }
 

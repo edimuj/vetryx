@@ -22,10 +22,10 @@
     },
     {
       "id": "SHELL-003",
-      "title": "Python subprocess execution",
-      "description": "subprocess module can execute arbitrary system commands.",
-      "severity": "high",
-      "pattern": "\\bsubprocess\\s*\\.\\s*(run|call|Popen|check_output|check_call|getoutput|getstatusoutput)\\s*\\(",
+      "title": "Python subprocess with non-list arguments",
+      "description": "subprocess call with string or variable arguments is vulnerable to command injection.",
+      "severity": "medium",
+      "pattern": "\\bsubprocess\\s*\\.\\s*(run|call|Popen|check_output|check_call|getoutput|getstatusoutput)\\s*\\(\\s*[^\\[\\s]",
       "file_extensions": ["py"],
       "remediation": "Use shell=False and pass arguments as a list. Validate all inputs."
     },
@@ -33,7 +33,7 @@
       "id": "SHELL-004",
       "title": "Python os.system/popen",
       "description": "os.system() and os.popen() execute shell commands.",
-      "severity": "high",
+      "severity": "medium",
       "pattern": "\\bos\\s*\\.\\s*(system|popen)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use subprocess module with shell=False instead."

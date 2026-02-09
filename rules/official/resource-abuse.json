@@ -6,7 +6,7 @@
       "id": "RESOURCE-001",
       "title": "Infinite loop",
       "description": "Unbounded loops can consume all CPU resources, causing denial of service.",
-      "severity": "high",
+      "severity": "low",
       "patterns": [
         "while\\s+True\\s*:",
         "while\\s+1\\s*:",

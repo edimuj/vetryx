@@ -151,6 +151,24 @@ impl StaticAnalyzer {
                     finding = finding.with_remediation(rem);
                 }
 
+                // Cap severity for documentation files — code patterns in docs
+                // are informational, not actionable. Content-attack rules
+                // (prompt injection, hidden instructions) are exempt since
+                // markdown IS their attack surface.
+                if matches!(ext, "md" | "txt" | "rst" | "adoc")
+                    && !rule.rule.id.starts_with("INJECT-")
+                    && !rule.rule.id.starts_with("AUTH-")
+                    && !rule.rule.id.starts_with("HIDDEN-")
+                    && !rule.rule.id.starts_with("MDCODE-")
+                    && finding.severity > Severity::Low
+                {
+                    finding.metadata.insert(
+                        "original_severity".to_string(),
+                        format!("{:?}", finding.severity),
+                    );
+                    finding.severity = Severity::Low;
+                }
+
                 findings.push(finding);
             }
         }
