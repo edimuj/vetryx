@@ -194,6 +194,9 @@ impl Scanner {
     pub async fn scan_path(&self, path: &Path) -> Result<ScanReport> {
         let start = Instant::now();
         let mut report = ScanReport::new(path.to_path_buf());
+        report.rule_count = self.static_analyzer.rule_count();
+        report.ast_enabled = self.config.enable_ast;
+        report.deps_enabled = self.config.enable_deps;
 
         // Determine platform and adapter
         let platform = self.config.platform.or_else(detect_platform);
@@ -374,9 +377,8 @@ impl Scanner {
             for finding in &mut result.findings {
                 if let Some(domain) = self.trusted_domains.check_snippet(&finding.snippet) {
                     if finding.severity > Severity::Info {
-                        finding.metadata.insert(
-                            "original_severity".to_string(),
-                            format!("{}", finding.severity),
+                        finding.metadata.entry("original_severity".to_string()).or_insert_with(
+                            || format!("{}", finding.severity),
                         );
                         finding
                             .metadata
@@ -518,9 +520,8 @@ impl Scanner {
                     if finding.severity > Severity::Low
                         && !scope::is_scope_cap_exempt(&finding.rule_id)
                     {
-                        finding.metadata.insert(
-                            "original_severity".to_string(),
-                            format!("{}", finding.severity),
+                        finding.metadata.entry("original_severity".to_string()).or_insert_with(
+                            || format!("{}", finding.severity),
                         );
                         finding
                             .metadata

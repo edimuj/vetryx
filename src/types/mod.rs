@@ -232,6 +232,15 @@ pub struct ScanReport {
     /// Number of agent-reachable files (referenced by instruction files).
     #[serde(default)]
     pub agent_reachable_count: usize,
+    /// Number of active detection rules.
+    #[serde(default)]
+    pub rule_count: usize,
+    /// Whether AST analysis was enabled.
+    #[serde(default)]
+    pub ast_enabled: bool,
+    /// Whether dependency scanning was enabled.
+    #[serde(default)]
+    pub deps_enabled: bool,
 }
 
 impl ScanReport {
@@ -245,6 +254,9 @@ impl ScanReport {
             installed_file_count: 0,
             dev_only_file_count: 0,
             agent_reachable_count: 0,
+            rule_count: 0,
+            ast_enabled: false,
+            deps_enabled: false,
         }
     }
 

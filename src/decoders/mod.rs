@@ -197,11 +197,18 @@ impl Decoder {
                 break;
             }
 
-            // Build new content by replacing encoded parts with decoded
+            // Build new content by replacing encoded parts at their exact offsets
+            // (reverse order preserves earlier offsets)
             let mut new_content = current_content.clone();
-            for d in decoded.iter().rev() {
-                // Use simple string replacement instead of replace_range to avoid UTF-8 boundary issues
-                new_content = new_content.replace(&d.original, &d.decoded);
+            let mut sorted = decoded.clone();
+            sorted.sort_by(|a, b| b.offset.cmp(&a.offset));
+            for d in &sorted {
+                let end = d.offset + d.original.len();
+                if end <= new_content.len()
+                    && new_content.get(d.offset..end) == Some(&d.original)
+                {
+                    new_content.replace_range(d.offset..end, &d.decoded);
+                }
             }
 
             all_layers.push(decoded);
@@ -291,24 +298,31 @@ impl Decoder {
     }
 
     fn try_decode_url(&self, s: &str) -> Option<String> {
-        let mut result = String::new();
+        let mut bytes = Vec::new();
         let mut chars = s.chars().peekable();
 
         while let Some(c) = chars.next() {
             if c == '%' {
                 let hex: String = chars.by_ref().take(2).collect();
                 if let Ok(byte) = u8::from_str_radix(&hex, 16) {
-                    result.push(byte as char);
+                    bytes.push(byte);
+                } else {
+                    // Invalid hex sequence, pass through as-is
+                    for b in format!("%{}", hex).bytes() {
+                        bytes.push(b);
+                    }
                 }
             } else {
-                result.push(c);
+                for b in c.to_string().as_bytes() {
+                    bytes.push(*b);
+                }
             }
         }
 
-        if result.is_empty() {
+        if bytes.is_empty() {
             None
         } else {
-            Some(result)
+            Some(String::from_utf8_lossy(&bytes).into_owned())
         }
     }
 }

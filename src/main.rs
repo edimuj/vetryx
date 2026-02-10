@@ -18,7 +18,14 @@ use vexscan::{
 };
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    if let Err(e) = run().await {
+        eprintln!("{}: {:?}", "Error".bright_red().bold(), e);
+        std::process::exit(2);
+    }
+}
+
+async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize logging (stderr to avoid interfering with JSON output)
@@ -140,6 +147,28 @@ async fn main() -> Result<()> {
             } else {
                 let mut stdout = io::stdout().lock();
                 report(&scan_report, format, &mut stdout)?;
+            }
+
+            // Hint about additional analyzers
+            if !ast && !deps {
+                eprintln!(
+                    "\n{} Use {} for obfuscation detection and {} for supply chain checks.",
+                    "Tip:".dimmed(),
+                    "--ast".bold(),
+                    "--deps".bold()
+                );
+            } else if !ast {
+                eprintln!(
+                    "\n{} Use {} for obfuscation detection.",
+                    "Tip:".dimmed(),
+                    "--ast".bold()
+                );
+            } else if !deps {
+                eprintln!(
+                    "\n{} Use {} for supply chain checks.",
+                    "Tip:".dimmed(),
+                    "--deps".bold()
+                );
             }
 
             // Check fail condition

@@ -84,6 +84,13 @@ fn report_cli<W: Write>(report: &ScanReport, writer: &mut W) -> Result<()> {
         writeln!(writer, "  Files scanned: {}", report.results.len())?;
     }
     writeln!(writer, "  Total findings: {}", report.total_findings())?;
+    writeln!(
+        writer,
+        "  Rules active:  {} (AST: {}, Deps: {})",
+        report.rule_count,
+        if report.ast_enabled { "on" } else { "off" },
+        if report.deps_enabled { "on" } else { "off" }
+    )?;
     writeln!(writer, "  Scan time:    {}ms", report.total_time_ms)?;
     writeln!(writer)?;
 
@@ -301,6 +308,17 @@ fn collect_sarif_results(report: &ScanReport) -> Vec<serde_json::Value> {
 
     for scan_result in &report.results {
         for finding in &scan_result.findings {
+            let mut region = serde_json::json!({
+                "startLine": finding.location.start_line,
+                "endLine": finding.location.end_line
+            });
+            if let Some(col) = finding.location.start_column {
+                region["startColumn"] = serde_json::json!(col);
+            }
+            if let Some(col) = finding.location.end_column {
+                region["endColumn"] = serde_json::json!(col);
+            }
+
             results.push(serde_json::json!({
                 "ruleId": finding.rule_id,
                 "level": severity_to_sarif_level(finding.severity),
@@ -310,14 +328,13 @@ fn collect_sarif_results(report: &ScanReport) -> Vec<serde_json::Value> {
                 "locations": [{
                     "physicalLocation": {
                         "artifactLocation": {
-                            "uri": finding.location.file.display().to_string()
+                            "uri": finding.location.file
+                                .strip_prefix(&report.scan_root)
+                                .unwrap_or(&finding.location.file)
+                                .display()
+                                .to_string()
                         },
-                        "region": {
-                            "startLine": finding.location.start_line,
-                            "endLine": finding.location.end_line,
-                            "startColumn": finding.location.start_column,
-                            "endColumn": finding.location.end_column
-                        }
+                        "region": region
                     }
                 }]
             }));

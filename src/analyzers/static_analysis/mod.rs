@@ -162,9 +162,8 @@ impl StaticAnalyzer {
                     && !rule.rule.id.starts_with("MDCODE-")
                     && finding.severity > Severity::Low
                 {
-                    finding.metadata.insert(
-                        "original_severity".to_string(),
-                        format!("{:?}", finding.severity),
+                    finding.metadata.entry("original_severity".to_string()).or_insert_with(
+                        || format!("{}", finding.severity),
                     );
                     finding.severity = Severity::Low;
                 }
