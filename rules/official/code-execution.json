@@ -6,7 +6,7 @@
       "id": "EXEC-001",
       "title": "Direct eval() usage",
       "description": "eval() executes arbitrary code and is commonly used in malware to run obfuscated payloads.",
-      "severity": "critical",
+      "severity": "medium",
       "pattern": "\\beval\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Replace eval() with safer alternatives like JSON.parse() for data or explicit function calls."
@@ -15,7 +15,7 @@
       "id": "EXEC-002",
       "title": "Function constructor",
       "description": "new Function() is equivalent to eval() and can execute arbitrary code.",
-      "severity": "critical",
+      "severity": "medium",
       "pattern": "\\bnew\\s+Function\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Avoid dynamic code generation. Use explicit function definitions."
@@ -24,7 +24,7 @@
       "id": "EXEC-003",
       "title": "VM code execution",
       "description": "Node.js vm module can execute arbitrary code with various isolation levels.",
-      "severity": "high",
+      "severity": "medium",
       "pattern": "\\bvm\\s*\\.\\s*(runInContext|runInNewContext|runInThisContext|compileFunction)\\s*\\(",
       "file_extensions": ["js", "ts", "mjs", "cjs"],
       "remediation": "Ensure VM usage is intentional and inputs are strictly validated."
@@ -33,7 +33,7 @@
       "id": "EXEC-004",
       "title": "Python exec/eval",
       "description": "exec() and eval() execute arbitrary Python code.",
-      "severity": "critical",
+      "severity": "medium",
       "pattern": "\\b(exec|eval)\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use ast.literal_eval() for safe evaluation of literals, or avoid dynamic execution entirely."
@@ -42,7 +42,7 @@
       "id": "EXEC-005",
       "title": "Python __import__() dynamic import",
       "description": "__import__() allows loading arbitrary modules at runtime, commonly used to evade static analysis.",
-      "severity": "high",
+      "severity": "medium",
       "pattern": "\\b__import__\\s*\\(",
       "file_extensions": ["py"],
       "remediation": "Use explicit import statements instead of dynamic __import__()."
@@ -51,7 +51,7 @@
       "id": "EXEC-006",
       "title": "Python compile() for code generation",
       "description": "compile() creates code objects from strings, which can then be executed with exec().",
-      "severity": "high",
+      "severity": "medium",
       "pattern": "\\bcompile\\s*\\([^)]*['\"][^'\"]*['\"]\\s*,\\s*['\"]",
       "file_extensions": ["py"],
       "remediation": "Avoid compiling code from strings. Use direct function definitions."
@@ -60,7 +60,7 @@
       "id": "EXEC-007",
       "title": "SQL injection via string formatting",
       "description": "Building SQL queries with f-strings or .format() allows attackers to inject arbitrary SQL commands.",
-      "severity": "critical",
+      "severity": "medium",
       "patterns": [
         "f[\"']SELECT.*FROM.*\\{",
         "f[\"'].*WHERE.*\\{",

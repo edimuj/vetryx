@@ -5,7 +5,7 @@
 <h1 align="center">Vexscan</h1>
 
 <p align="center">
-  <strong>Security scanner for AI agent plugins, skills, and MCP servers</strong>
+  <strong>Malware scanner for AI agent plugins, skills, and MCP servers</strong>
 </p>
 
 <p align="center">
@@ -54,7 +54,7 @@ AI agents can execute code, access files, and make network requests. A malicious
 - **Execute payloads** — Run obfuscated malicious code
 - **Download malware** — Instruct the AI to fetch and run remote scripts
 
-Vexscan catches these threats with **85+ detection rules**, multi-layer encoding detection, and pattern analysis.
+Vexscan catches these threats with **120+ detection rules**, multi-layer encoding detection, and pattern analysis.
 
 ## Installation
 
@@ -230,7 +230,7 @@ vexscan scan <path> -f sarif          # SARIF for GitHub integration
 
 ## Detection Rules
 
-85+ detection rules across these categories:
+120+ detection rules across these categories:
 
 | Category                | Examples                                        |
 |-------------------------|-------------------------------------------------|

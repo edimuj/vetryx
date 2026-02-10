@@ -17,7 +17,7 @@
       "description": "Webhooks to chat services are commonly used for data exfiltration.",
       "severity": "high",
       "pattern": "['\"]https://(discord\\.com/api/webhooks|hooks\\.slack\\.com|api\\.telegram\\.org)/[^'\"]+['\"]",
-      "file_extensions": [],
+      "file_extensions": ["js", "ts", "mjs", "cjs", "py", "rb", "sh", "bash", "zsh", "md", "txt", "yaml", "yml"],
       "remediation": "Webhook URLs should be reviewed for legitimacy."
     },
     {
@@ -78,7 +78,7 @@
       "description": "Using curl or wget to POST sensitive files (SSH keys, env files, credentials) to an external server.",
       "severity": "critical",
       "pattern": "(?i)(curl|wget)\\s+[^\\n]*(-d|--data|--post|--upload-file)[^\\n]*(\\.(ssh|env|aws|gnupg)|id_rsa|credentials|secret|password|token)",
-      "file_extensions": [],
+      "file_extensions": ["sh", "bash", "zsh", "py", "rb", "pl", "md", "txt", "yaml", "yml"],
       "remediation": "Remove data exfiltration commands targeting sensitive files."
     },
     {

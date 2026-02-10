@@ -68,7 +68,7 @@
     {
       "id": "SCRIPT-002",
       "title": "Curl/wget pipe to shell",
-      "description": "Downloading and executing remote scripts is extremely dangerous.",
+      "description": "Downloading and executing remote scripts is extremely dangerous. Trusted installer domains are downgraded post-scan.",
       "severity": "critical",
       "pattern": "(curl|wget)\\s+[^\\n|]*\\|\\s*(sudo\\s+)?(ba)?sh",
       "file_extensions": ["sh", "bash", "zsh"],
@@ -98,8 +98,110 @@
       "description": "Netcat (nc/ncat) combined with shell execution is a common backdoor pattern.",
       "severity": "critical",
       "pattern": "\\b(nc|ncat|netcat)\\s+.*(-e|--exec|\\|\\s*/bin/(ba)?sh)",
-      "file_extensions": [],
+      "file_extensions": ["sh", "bash", "zsh", "py", "rb", "pl", "js", "ts", "mjs", "cjs", "md", "txt", "yaml", "yml"],
       "remediation": "Remove netcat shell execution patterns."
+    },
+    {
+      "id": "SHELL-009",
+      "title": "Python pexpect shell spawning",
+      "description": "pexpect.spawn() creates interactive shell processes. In plugins and MCP servers, this gives AI agents unrestricted shell access to execute arbitrary commands.",
+      "severity": "high",
+      "pattern": "\\bpexpect\\s*\\.\\s*(spawn|spawnu|run)\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Restrict shell access. Use allowlists for permitted commands instead of spawning unrestricted shells.",
+      "test_cases": {
+        "should_match": [
+          "shell = pexpect.spawn(cmd, env=overrideenv)",
+          "child = pexpect.spawnu('/bin/bash')",
+          "pexpect.run('ls -la')"
+        ],
+        "should_not_match": [
+          "import pexpect",
+          "except pexpect.TIMEOUT:",
+          "pexpect.EOF"
+        ]
+      }
+    },
+    {
+      "id": "SHELL-010",
+      "title": "Python pty.spawn shell",
+      "description": "pty.spawn() creates a pseudo-terminal and spawns a shell process. Commonly used in reverse shells and privilege escalation.",
+      "severity": "high",
+      "pattern": "\\bpty\\s*\\.\\s*spawn\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Remove pty.spawn() usage. Use subprocess with restricted permissions instead.",
+      "test_cases": {
+        "should_match": [
+          "pty.spawn('/bin/bash')",
+          "pty.spawn(\"/bin/sh\")"
+        ],
+        "should_not_match": [
+          "import pty",
+          "pty.openpty()"
+        ]
+      }
+    },
+    {
+      "id": "SHELL-011",
+      "title": "Python os.exec* process replacement",
+      "description": "os.exec*() functions replace the current process with a new program. Can be used to escape sandboxes or execute arbitrary binaries.",
+      "severity": "medium",
+      "pattern": "\\bos\\s*\\.\\s*(execl|execle|execlp|execv|execve|execvp|execvpe)\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Use subprocess with restricted permissions instead of os.exec*().",
+      "test_cases": {
+        "should_match": [
+          "os.execvp('bash', ['bash'])",
+          "os.execl('/bin/sh', 'sh', '-c', cmd)",
+          "os.execve('/usr/bin/env', args, env)"
+        ],
+        "should_not_match": [
+          "os.path.exists()",
+          "os.environ.get()"
+        ]
+      }
+    },
+    {
+      "id": "SHELL-012",
+      "title": "Python asyncio subprocess shell",
+      "description": "asyncio.create_subprocess_shell() executes commands through the system shell. The _exec variant spawns processes directly.",
+      "severity": "high",
+      "pattern": "\\basyncio\\s*\\.\\s*create_subprocess_(shell|exec)\\s*\\(",
+      "file_extensions": ["py"],
+      "remediation": "Validate and restrict commands passed to asyncio subprocess functions.",
+      "test_cases": {
+        "should_match": [
+          "await asyncio.create_subprocess_shell(cmd)",
+          "proc = asyncio.create_subprocess_exec('ls', '-la')"
+        ],
+        "should_not_match": [
+          "asyncio.create_task()",
+          "asyncio.subprocess.PIPE"
+        ]
+      }
+    },
+    {
+      "id": "SHELL-013",
+      "title": "Python subprocess.Popen persistent process",
+      "description": "subprocess.Popen() creates a persistent subprocess. In MCP servers and plugins, this can provide AI agents with long-running shell access.",
+      "severity": "medium",
+      "pattern": "\\bsubprocess\\s*\\.\\s*Popen\\s*\\(",
+      "file_extensions": ["py"],
+      "exclude_patterns": [
+        "subprocess\\.Popen\\s*\\(\\s*\\[\\s*['\"](?:which|git|pip|npm|node|python|rg|grep|find|ls|cat|head|tail|wc|sort|uniq|diff|echo|true|false)['\"]"
+      ],
+      "remediation": "Use subprocess.run() for one-shot commands. If Popen is needed, restrict allowed commands and validate inputs.",
+      "test_cases": {
+        "should_match": [
+          "proc = subprocess.Popen(cmd)",
+          "subprocess.Popen(['/bin/bash'])",
+          "subprocess.Popen(['bash', '-c', command])"
+        ],
+        "should_not_match": [
+          "subprocess.run(['ls'])",
+          "subprocess.check_output(['git', 'status'])"
+        ]
+      }
     }
   ]
 }

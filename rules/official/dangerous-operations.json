@@ -4,23 +4,38 @@
   "rules": [
     {
       "id": "DANGER-001",
-      "title": "Recursive force delete",
-      "description": "rm -rf with root or broad paths can destroy entire filesystems.",
+      "title": "Recursive force delete of broad path",
+      "description": "rm -rf targeting root (/), home (~, $HOME), or parent (..) destroys entire filesystems. Targeted paths like /var/lib/... or ~/.config/... are excluded.",
       "severity": "critical",
-      "pattern": "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+(/|~|\\$HOME|\\$\\{HOME\\}|\\.\\.)",
-      "file_extensions": [],
+      "patterns": [
+        "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+/([\\s;|&*]|$)",
+        "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+~([\\s;|&*]|$|/([\\s;|&*]|$))",
+        "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+\\$HOME([\\s;|&*]|$|/([\\s;|&*]|$))",
+        "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+\\$\\{HOME\\}([\\s;|&*]|$|/([\\s;|&*]|$))",
+        "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\\s+\\.\\.(\\s|$|/([\\s;|&*]|$))"
+      ],
+      "file_extensions": ["sh", "bash", "zsh", "py", "js", "ts", "mjs", "cjs", "md", "txt", "yaml", "yml"],
       "remediation": "Remove destructive deletion commands. Use targeted paths and confirm before deleting.",
       "test_cases": {
         "should_match": [
           "rm -rf /",
+          "rm -rf /*",
           "rm -rf ~",
+          "rm -rf ~/",
+          "rm -rf ~/*",
           "rm -rf $HOME",
           "rm -rf ${HOME}",
-          "rm -rf .."
+          "rm -rf ..",
+          "rm -rf ../*"
         ],
         "should_not_match": [
           "rm -rf ./node_modules",
-          "rm -rf dist"
+          "rm -rf dist",
+          "rm -rf /var/lib/postgresql/tmp",
+          "rm -rf /tmp/*",
+          "rm -rf ~/.claude/plugins/foo",
+          "rm -rf $HOME/.config/app",
+          "rm -rf ../specific-dir"
         ]
       }
     },
@@ -28,7 +43,7 @@
       "id": "DANGER-002",
       "title": "World-writable permissions",
       "description": "chmod 777 or o+w makes files accessible to any user on the system.",
-      "severity": "high",
+      "severity": "medium",
       "pattern": "\\bchmod\\s+(-[a-zA-Z]*\\s+)*(777|666|o\\+w|a\\+w)",
       "file_extensions": [],
       "remediation": "Use restrictive permissions. 755 for directories, 644 for files.",
@@ -48,7 +63,7 @@
       "id": "DANGER-003",
       "title": "Sudo execution",
       "description": "sudo elevates to root privileges, enabling unrestricted system access.",
-      "severity": "high",
+      "severity": "medium",
       "pattern": "\\bsudo\\s+",
       "file_extensions": ["sh", "bash", "zsh", "js", "ts", "mjs", "cjs", "py"],
       "remediation": "Plugins should not require elevated privileges. Remove sudo usage.",

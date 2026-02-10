@@ -50,7 +50,7 @@
     {
       "id": "MDCODE-004",
       "title": "Curl/wget piped to shell in markdown",
-      "description": "Classic 'curl | bash' attack pattern in markdown code block.",
+      "description": "Classic 'curl | bash' attack pattern in markdown code block. Trusted installer domains are downgraded post-scan.",
       "severity": "critical",
       "pattern": "```[^`]*(curl|wget)\\s+[^\\n]*\\|\\s*(sudo\\s+)?(ba)?sh[^`]*```",
       "file_extensions": ["md", "markdown"],

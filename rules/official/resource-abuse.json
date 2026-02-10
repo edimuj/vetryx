@@ -53,7 +53,7 @@
       "id": "RESOURCE-003",
       "title": "Excessive memory allocation",
       "description": "Allocating very large memory blocks can exhaust system RAM and trigger OOM kills.",
-      "severity": "high",
+      "severity": "medium",
       "patterns": [
         "\\[.*\\]\\s*\\*\\s*(?:[1-9][0-9]{6,})",
         "bytearray\\s*\\(\\s*(?:[1-9][0-9]{7,})"

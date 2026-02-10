@@ -1,0 +1,19 @@
+{
+  "description": "Trusted installer domains — findings matching these are downgraded to Info",
+  "domains": [
+    { "domain": "ollama.com", "purpose": "Ollama LLM runtime installer" },
+    { "domain": "sh.rustup.rs", "purpose": "Rust toolchain installer" },
+    { "domain": "brew.sh", "purpose": "Homebrew package manager" },
+    { "domain": "get.docker.com", "purpose": "Docker engine installer" },
+    { "domain": "install.python-poetry.org", "purpose": "Python Poetry" },
+    { "domain": "get.sdkman.io", "purpose": "SDKMAN JVM toolkit" },
+    { "domain": "starship.rs", "purpose": "Starship prompt" },
+    { "domain": "bun.sh", "purpose": "Bun JS runtime" },
+    { "domain": "deno.land", "purpose": "Deno JS runtime" },
+    { "domain": "code.visualstudio.com", "purpose": "VS Code" },
+    { "domain": "ohmyz.sh", "purpose": "Oh My Zsh" },
+    { "domain": "get.rvm.io", "purpose": "Ruby Version Manager" },
+    { "domain": "raw.githubusercontent.com", "path_prefix": "/nvm-sh", "purpose": "NVM installer" },
+    { "domain": "raw.githubusercontent.com", "path_prefix": "/Homebrew", "purpose": "Homebrew installer" }
+  ]
+}

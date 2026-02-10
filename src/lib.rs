@@ -32,6 +32,7 @@ pub mod cli;
 pub mod config;
 pub mod decoders;
 pub mod deps;
+pub mod domains;
 pub mod reporters;
 pub mod rules;
 pub mod scope;
@@ -125,6 +126,7 @@ pub struct Scanner {
     deps_analyzer: Option<DependencyAnalyzer>,
     ai_analyzer: Option<AiAnalyzer>,
     cache: Option<ScanCache>,
+    trusted_domains: domains::TrustedDomainDb,
 }
 
 impl Scanner {
@@ -175,6 +177,8 @@ impl Scanner {
             None
         };
 
+        let trusted_domains = domains::TrustedDomainDb::load_builtin();
+
         Ok(Self {
             config,
             static_analyzer,
@@ -182,6 +186,7 @@ impl Scanner {
             deps_analyzer,
             ai_analyzer,
             cache,
+            trusted_domains,
         })
     }
 
@@ -364,19 +369,39 @@ impl Scanner {
                 }
             }
 
-            // Cap MDCODE rules to Medium on non-instruction, non-agent-reachable
-            // markdown files. Shell commands in READMEs are human-facing docs — only
-            // dangerous when an instruction file chains to them.
+            // Trusted domain downgrade: if a finding's snippet contains a URL
+            // to a trusted installer domain, downgrade to Info.
+            for finding in &mut result.findings {
+                if let Some(domain) = self.trusted_domains.check_snippet(&finding.snippet) {
+                    if finding.severity > Severity::Info {
+                        finding.metadata.insert(
+                            "original_severity".to_string(),
+                            format!("{}", finding.severity),
+                        );
+                        finding
+                            .metadata
+                            .insert("trusted_domain".to_string(), domain);
+                        finding.severity = Severity::Info;
+                    }
+                }
+            }
+
+            // Cap ALL findings to Low on non-instruction, non-agent-reachable
+            // markdown/text files. If no agent instruction file or script references
+            // this doc, no AI agent will read it — nothing in it is a real threat.
+            // This is reference-based scoping, not directory-based heuristics.
             if !is_agent_reachable && !trace::is_instruction_file(&component.path) {
                 if let Some(ext) = component.path.extension().and_then(|e| e.to_str()) {
-                    if matches!(ext, "md" | "markdown") {
+                    if matches!(ext, "md" | "markdown" | "txt") {
                         for finding in &mut result.findings {
-                            if finding.rule_id.starts_with("MDCODE-")
-                                && finding.severity > Severity::Low
-                            {
+                            if finding.severity > Severity::Low {
                                 finding.metadata.insert(
                                     "original_severity".to_string(),
                                     format!("{}", finding.severity),
+                                );
+                                finding.metadata.insert(
+                                    "unreferenced_doc".to_string(),
+                                    "true".to_string(),
                                 );
                                 finding.severity = Severity::Low;
                             }

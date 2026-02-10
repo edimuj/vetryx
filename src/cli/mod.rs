@@ -285,7 +285,7 @@ pub enum Commands {
         min_severity: String,
 
         /// Fail with exit code 1 if any findings at this severity or above
-        #[arg(long, default_value = "medium")]
+        #[arg(long, default_value = "high")]
         fail_on: String,
 
         /// Skip dependencies (node_modules, etc.)
