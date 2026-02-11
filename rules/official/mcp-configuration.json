@@ -129,7 +129,7 @@
       "title": "MCP server with credential harvesting env",
       "description": "MCP server env block reads or forwards sensitive credential environment variables to a server that may not need them.",
       "severity": "medium",
-      "pattern": "\"env\"\\s*:\\s*\\{[^}]*(\"[A-Z_]*(SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE_KEY|API_KEY)[A-Z_]*\"\\s*:\\s*\"[^\"]+\"){2,}",
+      "pattern": "\"env\"\\s*:\\s*\\{([^}]*\"[A-Z_]*(SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE_KEY|API_KEY)[A-Z_]*\"\\s*:\\s*\"[^\"]+\"){2,}",
       "file_extensions": ["json"],
       "remediation": "Only pass the minimum required credentials to each MCP server. A server requesting multiple unrelated secrets may be harvesting credentials.",
       "test_cases": {
@@ -166,7 +166,7 @@
       "title": "MCP server with reverse shell pattern",
       "description": "MCP server configuration contains a classic reverse shell pattern: netcat, bash, or socat connecting back to a remote host.",
       "severity": "critical",
-      "pattern": "\"(command|args)\"\\s*:.*\\b(nc|ncat|socat|bash)\\b.*\\s+-e\\s+/(bin|usr)",
+      "pattern": "\"(command|args)\"\\s*:.*\\b(nc|ncat|socat|bash)\\b.*-e[\"',\\s]+/(bin|usr)",
       "file_extensions": ["json"],
       "remediation": "This is a reverse shell pattern. Remove this MCP server configuration immediately and investigate the source.",
       "test_cases": {

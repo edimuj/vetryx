@@ -1354,11 +1354,23 @@ fn print_verdict(report: &vexscan::ScanReport, threshold: Severity) {
     // Risk score
     let risk_label = vexscan::ScanReport::risk_label(report.risk_score);
     let risk_colored = match report.risk_score {
-        0 => format!("{}/100 ({})", report.risk_score, risk_label).green().bold().to_string(),
-        1..=25 => format!("{}/100 ({})", report.risk_score, risk_label).blue().to_string(),
-        26..=50 => format!("{}/100 ({})", report.risk_score, risk_label).yellow().to_string(),
-        51..=75 => format!("{}/100 ({})", report.risk_score, risk_label).red().to_string(),
-        _ => format!("{}/100 ({})", report.risk_score, risk_label).bright_red().bold().to_string(),
+        0 => format!("{}/100 ({})", report.risk_score, risk_label)
+            .green()
+            .bold()
+            .to_string(),
+        1..=25 => format!("{}/100 ({})", report.risk_score, risk_label)
+            .blue()
+            .to_string(),
+        26..=50 => format!("{}/100 ({})", report.risk_score, risk_label)
+            .yellow()
+            .to_string(),
+        51..=75 => format!("{}/100 ({})", report.risk_score, risk_label)
+            .red()
+            .to_string(),
+        _ => format!("{}/100 ({})", report.risk_score, risk_label)
+            .bright_red()
+            .bold()
+            .to_string(),
     };
     info!("         Risk Score: {}", risk_colored);
 

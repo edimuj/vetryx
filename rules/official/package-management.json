@@ -133,7 +133,7 @@
       "title": "Install from Git URL",
       "description": "Installing packages directly from Git repositories bypasses registry security, checksum verification, and audit trails.",
       "severity": "high",
-      "pattern": "\\b(go\\s+install\\s+[^\\s]+@|cargo\\s+install\\s+--git\\s|pip[3]?\\s+install\\s+git\\+|gem\\s+install\\s+--source\\s+https?://)",
+      "pattern": "\\b(go\\s+install\\s+(?:github|gitlab|bitbucket|codeberg)\\b[^\\s]*@|cargo\\s+install\\s+--git\\s|pip[3]?\\s+install\\s+git\\+|gem\\s+install\\s+--source\\s+https?://)",
       "file_extensions": ["sh", "bash", "zsh", "md", "txt"],
       "remediation": "Install packages from official registries. Git-based installs skip integrity checks and can be changed after review.",
       "test_cases": {

@@ -37,8 +37,8 @@
       "severity": "critical",
       "patterns": [
         ">>?\\s*[^\\n]*authorized_keys",
-        "\\bauthorized_keys\\b[^\\n]*\\b(write|append|open|echo|tee|cp|mv)\\b",
-        "\\b(write|append|open|echo|tee|cp|mv)\\b[^\\n]*\\bauthorized_keys\\b"
+        "\\bauthorized_keys\\b[^\\n]*\\b(write\\w*|append\\w*|open\\w*|echo|tee|cp|mv)\\b",
+        "\\b(write\\w*|append\\w*|open\\w*|echo|tee|cp|mv)\\b[^\\n]*\\bauthorized_keys\\b"
       ],
       "file_extensions": ["sh", "bash", "zsh", "py", "rb", "js", "ts", "mjs", "cjs"],
       "remediation": "Plugins must not modify SSH authorized_keys. Remove key injection code.",
