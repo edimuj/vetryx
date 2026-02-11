@@ -298,6 +298,7 @@ const EMBEDDED_OFFICIAL: &[&str] = &[
     include_str!("../../rules/official/powershell.json"),
     include_str!("../../rules/official/batch-scripts.json"),
     include_str!("../../rules/official/mcp-configuration.json"),
+    include_str!("../../rules/official/persistence.json"),
 ];
 
 /// Embedded community rule JSON files (compiled into the binary).

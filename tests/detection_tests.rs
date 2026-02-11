@@ -390,6 +390,19 @@ fn test_detects_batch_attacks() {
 }
 
 // ============================================================================
+// PERSISTENCE TESTS
+// ============================================================================
+
+#[test]
+fn test_detects_persistence_techniques() {
+    assert_detects(
+        "persistence",
+        12,
+        "PERSIST-001 through PERSIST-005: Launch Agents, authorized_keys, git hooks, Docker entrypoint, npm lifecycle",
+    );
+}
+
+// ============================================================================
 // AGGREGATE TESTS
 // ============================================================================
 
@@ -398,11 +411,11 @@ fn test_all_samples_detected() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/samples");
     let (count, _) = scan_sample(path.to_str().unwrap());
 
-    // 28 sample files across 14 categories, ~140+ total findings
-    // Minimum expected: 130 (allowing some margin for rule changes)
+    // 33 sample files across 15 categories, ~155+ total findings
+    // Minimum expected: 140 (allowing some margin for rule changes)
     assert!(
-        count >= 130,
-        "Expected at least 130 total findings across all samples, got {}",
+        count >= 140,
+        "Expected at least 140 total findings across all samples, got {}",
         count
     );
 }

