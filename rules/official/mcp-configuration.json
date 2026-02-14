@@ -13,6 +13,7 @@
         "\"command\"\\s*:\\s*\"[^\"]*\\bnpx\\b"
       ],
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "MCP servers should use purpose-built executables, not general-purpose shells or interpreters. Use the specific server binary (e.g., 'mcp-server-filesystem') instead.",
       "test_cases": {
         "should_match": [
@@ -36,6 +37,7 @@
       "severity": "high",
       "pattern": "\"args\"\\s*:\\s*\\[[^\\]]*\"(--allow-all|--no-sandbox|--disable-security|--unsafe|--allow-write|--allow-dangerous|--insecure|--skip-verify|--no-auth|--disable-auth|--trust-all)\"",
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "Review and remove security-disabling flags. MCP servers should run with least-privilege settings.",
       "test_cases": {
         "should_match": [
@@ -58,6 +60,7 @@
       "severity": "critical",
       "pattern": "\"env\"\\s*:\\s*\\{[^}]*\"(PATH|LD_PRELOAD|LD_LIBRARY_PATH|DYLD_INSERT_LIBRARIES|DYLD_LIBRARY_PATH|NODE_OPTIONS|PYTHONPATH|PYTHONSTARTUP|RUBYOPT|PERL5OPT|PERL5LIB)\"\\s*:",
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "MCP server env blocks should only set application-specific variables (API keys, config paths). Never override PATH, LD_PRELOAD, or language-level execution hooks.",
       "test_cases": {
         "should_match": [
@@ -86,6 +89,7 @@
         "\"url\"\\s*:\\s*\"https?://0\\.0\\.0\\.0"
       ],
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "MCP servers should run locally (localhost/127.0.0.1). If a remote server is required, verify the domain is trusted and traffic is encrypted.",
       "test_cases": {
         "should_match": [
@@ -111,6 +115,7 @@
         "\"args\"\\s*:\\s*\\[[^\\]]*\"[^\"]*\\$HOME[^\"]*\""
       ],
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "MCP server arguments should be plain values, not shell expressions. Remove shell metacharacters (;, |, &, `, $()) from args.",
       "test_cases": {
         "should_match": [
@@ -131,6 +136,7 @@
       "severity": "medium",
       "pattern": "\"env\"\\s*:\\s*\\{([^}]*\"[A-Z_]*(SECRET|TOKEN|PASSWORD|CREDENTIAL|PRIVATE_KEY|API_KEY)[A-Z_]*\"\\s*:\\s*\"[^\"]+\"){2,}",
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "Only pass the minimum required credentials to each MCP server. A server requesting multiple unrelated secrets may be harvesting credentials.",
       "test_cases": {
         "should_match": [
@@ -149,6 +155,7 @@
       "severity": "medium",
       "pattern": "\"args\"\\s*:\\s*\\[[^\\]]*\"[^\"]*\\b(0\\.0\\.0\\.0|--host\\s+0\\.0\\.0\\.0|-l\\s|--listen|INADDR_ANY)[^\"]*\"",
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "MCP servers should bind to localhost only (127.0.0.1 or ::1). Binding to 0.0.0.0 exposes the server to network attacks.",
       "test_cases": {
         "should_match": [
@@ -168,6 +175,7 @@
       "severity": "critical",
       "pattern": "\"(command|args)\"\\s*:.*\\b(nc|ncat|socat|bash)\\b.*-e[\"',\\s]+/(bin|usr)",
       "file_extensions": ["json"],
+      "file_names": ["mcp.json", ".mcp.json", "mcp-config.json", "claude_desktop_config.json", "cline_mcp_settings.json", "mcp_settings.json"],
       "remediation": "This is a reverse shell pattern. Remove this MCP server configuration immediately and investigate the source.",
       "test_cases": {
         "should_match": [

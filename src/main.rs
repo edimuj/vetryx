@@ -771,12 +771,19 @@ async fn run() -> Result<()> {
                             RuleSource::Official => "".normal(),
                         };
 
+                        let file_constraint = if !r.file_names.is_empty() {
+                            format!(" ({})", r.file_names.join(", ")).dimmed()
+                        } else {
+                            "".normal()
+                        };
+
                         println!(
-                            "  {} [{}] - {}{}",
+                            "  {} [{}] - {}{}{}",
                             r.id.bright_cyan(),
                             severity_color,
                             r.title,
-                            source_badge
+                            source_badge,
+                            file_constraint
                         );
                     }
                     println!();

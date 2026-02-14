@@ -81,6 +81,10 @@ pub struct Rule {
     /// File extensions this rule applies to (empty = all).
     #[serde(default)]
     pub file_extensions: Vec<String>,
+    /// Specific filenames this rule applies to (empty = all).
+    /// When both file_extensions and file_names are set, both must match.
+    #[serde(default)]
+    pub file_names: Vec<String>,
     /// Patterns that exclude a match (e.g. safe IP ranges). If a match also
     /// matches any exclude pattern, it is silently dropped.
     #[serde(default)]
@@ -128,6 +132,17 @@ impl Rule {
         self.file_extensions
             .iter()
             .any(|e| e.eq_ignore_ascii_case(ext))
+    }
+
+    /// Check if this rule applies to a specific filename (basename).
+    /// Empty `file_names` means the rule applies to all files.
+    pub fn applies_to_filename(&self, filename: &str) -> bool {
+        if self.file_names.is_empty() {
+            return true;
+        }
+        self.file_names
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(filename))
     }
 }
 
@@ -299,6 +314,15 @@ impl RuleSet {
         content: &'a str,
         ext: &str,
     ) -> Vec<(&'a CompiledRule, Vec<regex::Match<'a>>)> {
+        self.find_matches_for_file(content, ext, None)
+    }
+
+    pub fn find_matches_for_file<'a>(
+        &'a self,
+        content: &'a str,
+        ext: &str,
+        filename: Option<&str>,
+    ) -> Vec<(&'a CompiledRule, Vec<regex::Match<'a>>)> {
         // Use RegexSet pre-filter to find which rules have any match
         let matching_rule_indices: HashSet<usize> = if let Some(ref regex_set) = self.regex_set {
             regex_set
@@ -321,6 +345,13 @@ impl RuleSet {
             .chain(ext_specific.into_iter().flatten())
             .copied()
             .filter(|idx| matching_rule_indices.contains(idx))
+            .filter(|idx| {
+                // Apply filename filter if provided
+                match filename {
+                    Some(fname) => self.rules[*idx].rule.applies_to_filename(fname),
+                    None => true,
+                }
+            })
             .filter_map(|idx| {
                 let rule = &self.rules[idx];
                 let matches = rule.find_matches(content);
@@ -348,6 +379,7 @@ mod tests {
             category: FindingCategory::CodeExecution,
             patterns: vec![r"eval\s*\(".to_string()],
             file_extensions: vec!["js".to_string(), "ts".to_string()],
+            file_names: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,
@@ -374,6 +406,7 @@ mod tests {
                 r"\bnew\s+Function\s*\(".to_string(),
             ],
             file_extensions: vec![],
+            file_names: vec![],
             exclude_patterns: vec![],
             remediation: None,
             enabled: true,
@@ -401,6 +434,7 @@ mod tests {
             category: FindingCategory::CredentialAccess,
             patterns: vec![r"AKIA[0-9A-Z]{16}".to_string()],
             file_extensions: vec![],
+            file_names: vec![],
             exclude_patterns: vec![],
             remediation: Some("Remove hardcoded keys".to_string()),
             enabled: true,
@@ -445,6 +479,7 @@ mod tests {
             category: FindingCategory::DataExfiltration,
             patterns: vec![r#"['"]([0-9]{1,3}\.){3}[0-9]{1,3}['"]"#.to_string()],
             file_extensions: vec![],
+            file_names: vec![],
             exclude_patterns: vec![
                 r#"['"]127\."#.to_string(),
                 r#"['"]0\.0\.0\.0"#.to_string(),
@@ -473,5 +508,90 @@ mod tests {
         let matches = compiled.find_matches(content);
         assert_eq!(matches.len(), 1);
         assert!(matches[0].as_str().contains("45.33.97.12"));
+    }
+
+    #[test]
+    fn test_applies_to_filename_empty() {
+        let rule = Rule {
+            id: "test".to_string(),
+            title: "test".to_string(),
+            description: "test".to_string(),
+            severity: Severity::Low,
+            category: FindingCategory::Other("Test".to_string()),
+            patterns: vec!["test".to_string()],
+            file_extensions: vec![],
+            file_names: vec![],
+            exclude_patterns: vec![],
+            remediation: None,
+            enabled: true,
+            source: RuleSource::Official,
+            metadata: None,
+        };
+        // Empty file_names matches everything
+        assert!(rule.applies_to_filename("anything.json"));
+        assert!(rule.applies_to_filename("package.json"));
+    }
+
+    #[test]
+    fn test_applies_to_filename_specific() {
+        let rule = Rule {
+            id: "test".to_string(),
+            title: "test".to_string(),
+            description: "test".to_string(),
+            severity: Severity::Low,
+            category: FindingCategory::Other("Test".to_string()),
+            patterns: vec!["test".to_string()],
+            file_extensions: vec!["json".to_string()],
+            file_names: vec!["mcp.json".to_string(), ".mcp.json".to_string()],
+            exclude_patterns: vec![],
+            remediation: None,
+            enabled: true,
+            source: RuleSource::Official,
+            metadata: None,
+        };
+        // Should match targeted filenames
+        assert!(rule.applies_to_filename("mcp.json"));
+        assert!(rule.applies_to_filename(".mcp.json"));
+        // Case-insensitive
+        assert!(rule.applies_to_filename("MCP.JSON"));
+        // Should not match other filenames
+        assert!(!rule.applies_to_filename("package.json"));
+        assert!(!rule.applies_to_filename("tsconfig.json"));
+    }
+
+    #[test]
+    fn test_find_matches_with_filename_filter() {
+        let rule = Rule {
+            id: "MCP-TEST".to_string(),
+            title: "test mcp rule".to_string(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            category: FindingCategory::Other("MCP Configuration".to_string()),
+            patterns: vec![r#""url"\s*:\s*"https?://[^"]+""#.to_string()],
+            file_extensions: vec!["json".to_string()],
+            file_names: vec!["mcp.json".to_string()],
+            exclude_patterns: vec![],
+            remediation: None,
+            enabled: true,
+            source: RuleSource::Official,
+            metadata: None,
+        };
+
+        let mut ruleset = RuleSet::new();
+        ruleset.add_rule(rule).unwrap();
+
+        let content = r#""url": "https://evil.com/api""#;
+
+        // Should match when filename is mcp.json
+        let matches = ruleset.find_matches_for_file(content, "json", Some("mcp.json"));
+        assert_eq!(matches.len(), 1);
+
+        // Should NOT match when filename is package.json
+        let matches = ruleset.find_matches_for_file(content, "json", Some("package.json"));
+        assert!(matches.is_empty());
+
+        // Should match when no filename provided (backwards compat)
+        let matches = ruleset.find_matches_for_file(content, "json", None);
+        assert_eq!(matches.len(), 1);
     }
 }

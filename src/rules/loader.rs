@@ -39,6 +39,8 @@ struct JsonRule {
     #[serde(default)]
     file_extensions: Vec<String>,
     #[serde(default)]
+    file_names: Vec<String>,
+    #[serde(default)]
     exclude_patterns: Vec<String>,
     remediation: Option<String>,
     #[serde(default = "default_true")]
@@ -107,6 +109,7 @@ impl JsonRule {
             category: parse_category(category),
             patterns,
             file_extensions: self.file_extensions.clone(),
+            file_names: self.file_names.clone(),
             exclude_patterns: self.exclude_patterns.clone(),
             remediation: self.remediation.clone(),
             enabled: self.enabled,
