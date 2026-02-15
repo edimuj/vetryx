@@ -32,6 +32,10 @@ pub fn build_dev_only_globs() -> GlobSet {
         "playwright/**",
         "coverage/**",
         ".nyc_output/**",
+        // Build output directories (bundled/minified third-party code)
+        "dist/**",
+        "build/**",
+        "out/**",
     ];
 
     for pattern in &dev_dirs {
@@ -74,6 +78,11 @@ pub fn build_dev_only_globs() -> GlobSet {
         "Gulpfile*",
         "rollup.config.*",
         "webpack.config.*",
+        // Minified/bundled files (build artifacts, not source)
+        "*.min.js",
+        "*.min.css",
+        "*.min.mjs",
+        "vendor-*.js",
     ];
 
     for pattern in &dev_files {
@@ -102,6 +111,11 @@ mod tests {
         assert!(globs.is_match(Path::new("examples/demo.py")));
         assert!(globs.is_match(Path::new("fixtures/malicious.js")));
         assert!(globs.is_match(Path::new("e2e/login.spec.ts")));
+        // Build output directories
+        assert!(globs.is_match(Path::new("dist/bundle.js")));
+        assert!(globs.is_match(Path::new("dist/vendor-abc123.js")));
+        assert!(globs.is_match(Path::new("build/static/js/main.js")));
+        assert!(globs.is_match(Path::new("out/index.html")));
     }
 
     #[test]
@@ -114,6 +128,10 @@ mod tests {
         assert!(globs.is_match(Path::new("jest.config.ts")));
         assert!(globs.is_match(Path::new("Dockerfile")));
         assert!(globs.is_match(Path::new("docker-compose.yml")));
+        // Minified/bundled files
+        assert!(globs.is_match(Path::new("app.min.js")));
+        assert!(globs.is_match(Path::new("styles.min.css")));
+        assert!(globs.is_match(Path::new("vendor-react.js")));
     }
 
     #[test]
@@ -124,6 +142,6 @@ mod tests {
         assert!(!globs.is_match(Path::new("package.json")));
         assert!(!globs.is_match(Path::new("SKILL.md")));
         assert!(!globs.is_match(Path::new("README.md")));
-        assert!(!globs.is_match(Path::new("dist/bundle.js")));
+        assert!(!globs.is_match(Path::new("src/bundle.js")));
     }
 }

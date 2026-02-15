@@ -319,9 +319,10 @@ mod tests {
             scope.classify(&root.join("lib/utils.ts"), root),
             InstallScope::Installed
         );
+        // dist/ is now classified as DevOnly (build output, not source)
         assert_eq!(
             scope.classify(&root.join("dist/bundle.js"), root),
-            InstallScope::Installed
+            InstallScope::DevOnly
         );
     }
 

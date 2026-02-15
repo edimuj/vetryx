@@ -81,6 +81,7 @@ async fn run() -> Result<()> {
             no_cache,
             installed_only,
             include_dev,
+            jobs,
         } => {
             // Parse platform
             let platform: Option<Platform> = platform
@@ -128,6 +129,7 @@ async fn run() -> Result<()> {
                 installed_only,
                 include_dev,
                 extra_rules_dirs,
+                max_threads: jobs.unwrap_or(0),
                 ..Default::default()
             };
 
@@ -872,6 +874,7 @@ async fn run() -> Result<()> {
             no_cache,
             installed_only,
             include_dev,
+            jobs,
         } => {
             // Validate platform
             if platform != "claude-code" {
@@ -940,6 +943,7 @@ async fn run() -> Result<()> {
                 installed_only,
                 include_dev,
                 extra_rules_dirs,
+                max_threads: jobs.unwrap_or(0),
                 ..Default::default()
             };
 
@@ -1080,6 +1084,7 @@ async fn run() -> Result<()> {
             no_cache,
             installed_only,
             include_dev,
+            jobs,
         } => {
             // Parse severities
             let min_severity = parse_severity(&min_severity)?;
@@ -1130,6 +1135,7 @@ async fn run() -> Result<()> {
                 installed_only,
                 include_dev,
                 extra_rules_dirs,
+                max_threads: jobs.unwrap_or(0),
                 ..Default::default()
             };
 

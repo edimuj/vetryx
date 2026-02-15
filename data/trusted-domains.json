@@ -14,6 +14,10 @@
     { "domain": "ohmyz.sh", "purpose": "Oh My Zsh" },
     { "domain": "get.rvm.io", "purpose": "Ruby Version Manager" },
     { "domain": "raw.githubusercontent.com", "path_prefix": "/nvm-sh", "purpose": "NVM installer" },
-    { "domain": "raw.githubusercontent.com", "path_prefix": "/Homebrew", "purpose": "Homebrew installer" }
+    { "domain": "raw.githubusercontent.com", "path_prefix": "/Homebrew", "purpose": "Homebrew installer" },
+    { "domain": "foundry.paradigm.xyz", "purpose": "Foundry Ethereum toolchain" },
+    { "domain": "astral.sh", "purpose": "Astral (uv/ruff) Python toolchain" },
+    { "domain": "tailscale.com", "purpose": "Tailscale VPN" },
+    { "domain": "fnm.vercel.app", "purpose": "Fast Node Manager installer" }
   ]
 }

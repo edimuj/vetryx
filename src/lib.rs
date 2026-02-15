@@ -97,6 +97,8 @@ pub struct ScanConfig {
     pub include_dev: bool,
     /// Additional directories to load rules from at runtime.
     pub extra_rules_dirs: Vec<PathBuf>,
+    /// Max parallel threads for scanning (0 = all CPUs, default = half CPUs).
+    pub max_threads: usize,
 }
 
 impl Default for ScanConfig {
@@ -118,7 +120,26 @@ impl Default for ScanConfig {
             installed_only: false,
             include_dev: false,
             extra_rules_dirs,
+            max_threads: 0,
         }
+    }
+}
+
+/// Returns a sensible default thread count: half of available CPUs, minimum 1.
+pub fn default_thread_count() -> usize {
+    let cpus = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+    (cpus / 2).max(1)
+}
+
+/// Resolves the configured max_threads to an actual count.
+/// 0 means "use default" (half CPUs).
+fn resolve_thread_count(max_threads: usize) -> usize {
+    if max_threads == 0 {
+        default_thread_count()
+    } else {
+        max_threads
     }
 }
 
@@ -299,92 +320,101 @@ impl Scanner {
         let cache = &self.cache;
 
         // Tuple: (component, content, result, cache_hit, file_scope)
+        let num_threads = resolve_thread_count(self.config.max_threads);
+        tracing::info!("Scanning with {} threads", num_threads);
+
         let static_results: Vec<_> = std::thread::scope(|s| {
-            let handles: Vec<_> = scannable
-                .iter()
-                .map(|(component, file_scope)| {
+            // Chunk work across a fixed number of threads instead of one-per-file
+            let chunks: Vec<&[(_, _)]> = scannable.chunks((scannable.len() / num_threads).max(1)).collect();
+            let handles: Vec<_> = chunks
+                .into_iter()
+                .map(|chunk| {
                     s.spawn(move || {
-                        tracing::debug!("Scanning: {}", component.path.display());
-                        let content = match std::fs::read_to_string(&component.path) {
-                            Ok(c) => c,
-                            Err(e) => {
-                                tracing::warn!(
-                                    "Failed to read {}: {}",
-                                    component.path.display(),
-                                    e
-                                );
-                                return None;
-                            }
-                        };
-
-                        // Compute content hash for cache lookup
-                        let content_hash = {
-                            use sha2::{Digest, Sha256};
-                            let mut hasher = Sha256::new();
-                            hasher.update(content.as_bytes());
-                            format!("{:x}", hasher.finalize())
-                        };
-
-                        // Check cache
-                        if let Some(ref cache) = cache {
-                            if let Some(mut cached_findings) = cache.get(&content_hash) {
-                                tracing::debug!(
-                                    "Cache hit: {} ({} findings)",
-                                    component.path.display(),
-                                    cached_findings.len()
-                                );
-                                // Fix paths (content may have been cached under a different filename)
-                                for finding in &mut cached_findings {
-                                    finding.location.file = component.path.clone();
-                                }
-                                let mut result = ScanResult::new(component.path.clone());
-                                result.content_hash = Some(content_hash);
-                                result.findings = cached_findings;
-                                return Some((component, content, result, true, *file_scope));
-                            }
-                        }
-
-                        // Cache miss — run static analysis (pass pre-computed hash)
-                        let mut result = match static_analyzer.scan_content(
-                            &content,
-                            &component.path,
-                            Some(content_hash),
-                        ) {
-                            Ok(result) => result,
-                            Err(e) => {
-                                tracing::warn!(
-                                    "Failed to scan {}: {}",
-                                    component.path.display(),
-                                    e
-                                );
-                                return None;
-                            }
-                        };
-
-                        // AST analysis runs in the same thread (per-call parser, no Mutex)
-                        if let Some(ref ast) = ast_analyzer {
-                            match ast.analyze_content_str(&content, &component.path) {
-                                Ok(ast_result) => {
-                                    result.findings.extend(ast_result.findings);
-                                }
+                        let mut results = Vec::with_capacity(chunk.len());
+                        for (component, file_scope) in chunk {
+                            tracing::debug!("Scanning: {}", component.path.display());
+                            let content = match std::fs::read_to_string(&component.path) {
+                                Ok(c) => c,
                                 Err(e) => {
                                     tracing::warn!(
-                                        "AST analysis failed for {}: {}",
+                                        "Failed to read {}: {}",
                                         component.path.display(),
                                         e
                                     );
+                                    continue;
+                                }
+                            };
+
+                            // Compute content hash for cache lookup
+                            let content_hash = {
+                                use sha2::{Digest, Sha256};
+                                let mut hasher = Sha256::new();
+                                hasher.update(content.as_bytes());
+                                format!("{:x}", hasher.finalize())
+                            };
+
+                            // Check cache
+                            if let Some(ref cache) = cache {
+                                if let Some(mut cached_findings) = cache.get(&content_hash) {
+                                    tracing::debug!(
+                                        "Cache hit: {} ({} findings)",
+                                        component.path.display(),
+                                        cached_findings.len()
+                                    );
+                                    for finding in &mut cached_findings {
+                                        finding.location.file = component.path.clone();
+                                    }
+                                    let mut result = ScanResult::new(component.path.clone());
+                                    result.content_hash = Some(content_hash);
+                                    result.findings = cached_findings;
+                                    results.push((component, content, result, true, *file_scope));
+                                    continue;
                                 }
                             }
-                        }
 
-                        Some((component, content, result, false, *file_scope))
+                            // Cache miss — run static analysis (pass pre-computed hash)
+                            let mut result = match static_analyzer.scan_content(
+                                &content,
+                                &component.path,
+                                Some(content_hash),
+                            ) {
+                                Ok(result) => result,
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Failed to scan {}: {}",
+                                        component.path.display(),
+                                        e
+                                    );
+                                    continue;
+                                }
+                            };
+
+                            // AST analysis runs in the same thread (per-call parser, no Mutex)
+                            if let Some(ref ast) = ast_analyzer {
+                                match ast.analyze_content_str(&content, &component.path) {
+                                    Ok(ast_result) => {
+                                        result.findings.extend(ast_result.findings);
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            "AST analysis failed for {}: {}",
+                                            component.path.display(),
+                                            e
+                                        );
+                                    }
+                                }
+                            }
+
+                            results.push((component, content, result, false, *file_scope));
+                        }
+                        results
                     })
                 })
                 .collect();
 
             handles
                 .into_iter()
-                .filter_map(|h| h.join().ok().flatten())
+                .flat_map(|h| h.join().unwrap_or_default())
                 .collect()
         });
 

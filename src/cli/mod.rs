@@ -123,6 +123,10 @@ pub enum Commands {
         /// Scan all files at full severity (disable scope-based severity capping)
         #[arg(long)]
         include_dev: bool,
+
+        /// Max parallel threads (default: half of available CPUs, 0 = all CPUs)
+        #[arg(short = 'j', long, value_name = "N")]
+        jobs: Option<usize>,
     },
 
     /// Watch for new plugin/skill installations and scan automatically
@@ -274,6 +278,10 @@ pub enum Commands {
         /// Scan all files at full severity (disable scope-based severity capping)
         #[arg(long)]
         include_dev: bool,
+
+        /// Max parallel threads (default: half of available CPUs, 0 = all CPUs)
+        #[arg(short = 'j', long, value_name = "N")]
+        jobs: Option<usize>,
     },
 
     /// Vet a plugin/skill before installation (scan from GitHub URL or local path)
@@ -331,6 +339,10 @@ pub enum Commands {
         /// Scan all files at full severity (disable scope-based severity capping)
         #[arg(long)]
         include_dev: bool,
+
+        /// Max parallel threads (default: half of available CPUs, 0 = all CPUs)
+        #[arg(short = 'j', long, value_name = "N")]
+        jobs: Option<usize>,
     },
 
     /// Manage the scan result cache
