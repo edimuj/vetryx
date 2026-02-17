@@ -179,7 +179,7 @@ impl ScanProgress {
         let last = self.last_update.load(Ordering::Relaxed);
 
         // Update if 2 seconds passed OR every 500 files
-        let should_update = (elapsed_millis - last >= 2000) || (count % 500 == 0);
+        let should_update = (elapsed_millis - last >= 2000) || count.is_multiple_of(500);
 
         if should_update && self.last_update.compare_exchange(last, elapsed_millis, Ordering::Relaxed, Ordering::Relaxed).is_ok() {
             eprint!("\rScanning... {}/{} files", count, self.total);
